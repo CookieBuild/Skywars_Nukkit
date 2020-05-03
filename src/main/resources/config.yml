@@ -1,0 +1,23 @@
+# The number of plots in your map
+game_size: 8
+
+# The coordinates of each plot (the center of the plot)
+plot_0: 185,5,155
+plot_1: 185,5,112
+plot_2: 143,5,112
+plot_3: 143,5,155
+plot_4: 101,5,112
+plot_5: 60,5,112
+plot_6: 60,5,70
+plot_7: 101,5,70
+
+
+# Set to false if you're not me
+database_enabled: false
+proxy_enabled: false
+
+# Settings for the database
+database_address: 127.0.0.1
+database_name: Cookie
+database_user: Cookie
+database_password: Cookie

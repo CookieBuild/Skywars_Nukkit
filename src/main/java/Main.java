@@ -107,7 +107,6 @@ public class Main extends PluginBase {
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event){
-
     }
 
     @EventHandler
