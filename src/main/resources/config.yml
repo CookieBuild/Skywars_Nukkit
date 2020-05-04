@@ -1,15 +1,26 @@
-# The number of plots in your map
-game_size: 8
+# The number maps
+maps: 2
 
-# The coordinates of each plot (the center of the plot)
-plot_0: 185,5,155
-plot_1: 185,5,112
-plot_2: 143,5,112
-plot_3: 143,5,155
-plot_4: 101,5,112
-plot_5: 60,5,112
-plot_6: 60,5,70
-plot_7: 101,5,70
+# The coordinates of each spawn
+0_game_size: 8
+0_plot_0: 185,5,155
+0_plot_1: 185,5,112
+0_plot_2: 143,5,112
+0_plot_3: 143,5,155
+0_plot_4: 101,5,112
+0_plot_5: 60,5,112
+0_plot_6: 60,5,70
+0_plot_7: 101,5,70
+
+1_game_size: 8
+1_plot_0: 185,5,155
+1_plot_1: 185,5,112
+1_plot_2: 143,5,112
+1_plot_3: 143,5,155
+1_plot_4: 101,5,112
+1_plot_5: 60,5,112
+1_plot_6: 60,5,70
+1_plot_7: 101,5,70
 
 
 # Set to false if you're not me
