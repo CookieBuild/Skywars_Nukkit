@@ -2,6 +2,7 @@ package main.java;
 
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.utils.TextFormat;
 
 public class SkywarsGame extends Game {
     public SkywarsGame(int gameNumber, Server server, Main plugin) {
@@ -11,6 +12,12 @@ public class SkywarsGame extends Game {
     @Override
     public boolean isGameEnded() {
         if (this.hasStarted() && getPlayers().size() <= 1) {
+
+            if (getPlayers().size() == 1) {
+                cbPlayer winner = this.getPlayers().get(0);
+                plugin.giveCoins(winner, 8);
+                winner.sendMessage(TextFormat.GREEN + "> You won the game ! You received 8 coins");
+            }
 
             for (Player p : this.server.getOnlinePlayers().values()) {
 

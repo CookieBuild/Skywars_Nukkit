@@ -1,13 +1,17 @@
 package main.java;
 
+import cn.nukkit.Player;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.block.BlockBreakEvent;
 import cn.nukkit.event.block.BlockPlaceEvent;
+import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.player.*;
+import cn.nukkit.item.Item;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
+import cn.nukkit.utils.TextFormat;
 import main.java.Data.dataBaseQuery;
 import main.java.Data.getPlayerDataTask;
 
@@ -31,7 +35,7 @@ public class Main extends PluginBase {
     private String password;
 
     @Override
-    public void onEnable(){
+    public void onEnable() {
         Config config = this.getConfig();
         this.isDataBaseEnabled = config.getBoolean("database_enabled");
         this.isProxyEnabled = config.getBoolean("proxy_enabled");
@@ -92,21 +96,33 @@ public class Main extends PluginBase {
     }
 
     @EventHandler
-    public void onEntityDamaged(EntityDamageEvent event){
-        if(event.getEntity() instanceof cbPlayer){
+    public void onEntityDamaged(EntityDamageEvent event) {
+        if (event.getEntity() instanceof cbPlayer) {
             cbPlayer player = (cbPlayer) event.getEntity();
             if (!player.isInGame) {
                 event.setCancelled();
             } else {
                 if (!this.game.hasStarted()) {
                     event.setCancelled();
+                } else {
+                    if (event instanceof EntityDamageByEntityEvent) {
+                        if (((EntityDamageByEntityEvent) event).getDamager() instanceof cbPlayer) {
+                            cbPlayer damager = (cbPlayer) ((EntityDamageByEntityEvent) event).getDamager();
+                            player.lastHitPlayer = damager;
+                        }
+                    }
+                }
+
+                if (!event.isCancelled() && player.getHealth() - event.getFinalDamage() < 1f) {
+                    event.setCancelled();
+                    this.simulateDeath(player);
                 }
             }
         }
     }
 
     @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event){
+    public void onPlayerMove(PlayerMoveEvent event) {
     }
 
     @EventHandler
@@ -133,14 +149,50 @@ public class Main extends PluginBase {
         }
     }
 
+    public void simulateDeath(cbPlayer player) {
+        if (player.isInGame) {
+            player.isInGame = false;
+            this.game.removePlayer(player);
+            player.sendMessage(TextFormat.RED + "> You have been eliminated !");
 
-    public void onPlayerJoinGame(cbPlayer player){
+
+            for (Item item : player.getInventory().getContents().values()) {
+                player.getLevel().dropItem(player.getLocation(), item);
+            }
+
+            if (player.lastHitPlayer != null && isDataBaseEnabled) {
+                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[MicroBattles] You earned 1 coins for killing " + player.getNameTag().replace("\n", " "));
+                this.giveCoins(player.lastHitPlayer, 1);
+                player.lastHitPlayer = null;
+            }
+
+            //TODO : spectator mode
+            //player.teleportImmediate(Location.fromObject(this.getServer().getDefaultLevel().getSpawnLocation(),this.getServer().getDefaultLevel()));
+            //  player.teleport(Location.fromObject(this.getServer().getDefaultLevel().getSpawnLocation(), this.getServer().getDefaultLevel()));
+
+            player.getInventory().clearAll();
+            //player.refreshStatParticle();
+            player.setHealth(20);
+            player.fireTicks = 0;
+            player.setOnFire(0);
+            player.removeAllEffects();
+            player.getFoodData().setFoodLevel(20);
+            player.setFoodEnabled(false);
+            //  player.regenerateDisplayName();
+            //     this.spawnNpcsTo(player);
+            player.setGamemode(Player.SPECTATOR);
+
+        }
+    }
+
+
+    public void onPlayerJoinGame(cbPlayer player) {
         //TODO
 
     }
 
 
-    public void teleportToGame(cbPlayer player){
+    public void teleportToGame(cbPlayer player) {
         //TODO
     }
 
