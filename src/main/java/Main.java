@@ -17,11 +17,12 @@ import main.java.Data.getPlayerDataTask;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class Main extends PluginBase {
 
     public SkywarsGame game;
-    public List<Vector3> pedestals = new ArrayList<>();
+    public List<List<Vector3>> pedestals = new ArrayList<>();
     public boolean isDataBaseEnabled = false;
     public boolean isProxyEnabled = false;
     String gameMapName = "game";
@@ -47,7 +48,20 @@ public class Main extends PluginBase {
             this.password = config.getString("database_password");
         }
 
-        this.game = new SkywarsGame(0, this.getServer(), this);
+        int numberOfMaps = config.getInt("maps");
+
+        for (int i = 0; i < numberOfMaps; i++) {
+            int numberOfPlots = config.getInt("" + i + "_game_size");
+            List<Vector3> plots = new ArrayList<>();
+            for (int k = 0; k < numberOfPlots; k++) {
+                String[] xyz = config.getString("" + i + "_plot_" + k).split(",");
+                plots.add(new Vector3(Integer.parseInt(xyz[0].trim()) + 0.5, Integer.parseInt(xyz[1].trim()) + 0.5, Integer.parseInt(xyz[2].trim()) + 0.5));
+            }
+            pedestals.add(plots);
+        }
+
+
+        this.game = new SkywarsGame(new Random().nextInt(numberOfMaps), this.getServer(), this);
 
     }
 
