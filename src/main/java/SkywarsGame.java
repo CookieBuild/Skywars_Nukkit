@@ -82,8 +82,8 @@ public class SkywarsGame extends Game {
             this.resetGame();
 
             // Unload + reload to reset map
-            this.server.unloadLevel(this.server.getLevelByName("game-" + this.gameNumber), true);
-            this.server.loadLevel("game-" + this.gameNumber);
+            this.server.unloadLevel(this.server.getLevelByName(this.plugin.gameMapName), true);
+            this.server.loadLevel(this.plugin.gameMapName);
 
             return true;
         } else {
@@ -95,7 +95,7 @@ public class SkywarsGame extends Game {
     private int refillChests() {
         int numberOfChests = 0;
         Random random = new Random();
-        for (BlockEntity blockEntity : this.server.getLevelByName("game").getBlockEntities().values()) {
+        for (BlockEntity blockEntity : this.server.getLevelByName(this.plugin.gameMapName).getBlockEntities().values()) {
             if (blockEntity instanceof BlockEntityChest) {
                 numberOfChests++;
 
