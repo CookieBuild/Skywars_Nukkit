@@ -21,6 +21,8 @@ import java.util.Random;
 
 public class Main extends PluginBase {
 
+    public final String gameModeName = "SkyWars";
+
     public SkywarsGame game;
     public List<List<Vector3>> pedestals = new ArrayList<>();
     public boolean isDataBaseEnabled = false;
@@ -50,6 +52,7 @@ public class Main extends PluginBase {
 
         int numberOfMaps = config.getInt("maps");
 
+        // Load all the coordinates
         for (int i = 0; i < numberOfMaps; i++) {
             int numberOfPlots = config.getInt("" + i + "_game_size");
             List<Vector3> plots = new ArrayList<>();
@@ -175,25 +178,21 @@ public class Main extends PluginBase {
             }
 
             if (player.lastHitPlayer != null && isDataBaseEnabled) {
-                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[MicroBattles] You earned 1 coins for killing " + player.getNameTag().replace("\n", " "));
-                this.giveCoins(player.lastHitPlayer, 1);
+                int coinsGiven = this.giveCoins(player.lastHitPlayer, 1);
+                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[" + gameModeName + "] You earned " + coinsGiven + "coins for killing " + player.getNameTag().replace("\n", " "));
+
                 player.lastHitPlayer = null;
             }
 
-            //TODO : spectator mode
-            //player.teleportImmediate(Location.fromObject(this.getServer().getDefaultLevel().getSpawnLocation(),this.getServer().getDefaultLevel()));
-            //  player.teleport(Location.fromObject(this.getServer().getDefaultLevel().getSpawnLocation(), this.getServer().getDefaultLevel()));
-
             player.getInventory().clearAll();
-            //player.refreshStatParticle();
+
             player.setHealth(20);
             player.fireTicks = 0;
             player.setOnFire(0);
             player.removeAllEffects();
             player.getFoodData().setFoodLevel(20);
             player.setFoodEnabled(false);
-            //  player.regenerateDisplayName();
-            //     this.spawnNpcsTo(player);
+
             player.setGamemode(Player.SPECTATOR);
 
         }
@@ -211,13 +210,39 @@ public class Main extends PluginBase {
     }
 
 
-    public void giveCoins(cbPlayer player, int coins) {
+    /**
+     * Add coin to the player data
+     *
+     * @param player
+     * @param coins
+     * @return The amount of coins given (depending on rank, bonus...)
+     */
+    public int giveCoins(cbPlayer player, int coins) {
         if (this.isDataBaseEnabled) {
-            player.coins += coins;
-            player.storedPlayerData.coins += coins;
-            String query = "UPDATE data set playerCoins = (playerCoins + " + coins + ") where playerName = '" + player.getName() + "' ;";
+            int coinMultiplier = 1;
+            if (player.hasPermission("group.vip")) {
+                coinMultiplier = 2;
+            }
+            if (player.hasPermission("group.vip+")) {
+                coinMultiplier = 3;
+            }
+            if (player.hasPermission("group.legend")) {
+                coinMultiplier = 4;
+            }
+            if (player.hasPermission("group.titan")) {
+                coinMultiplier = 5;
+            }
+
+            int amount = coins * coinMultiplier;
+
+            player.coins += amount;
+            player.storedPlayerData.coins += amount;
+            String query = "UPDATE data set playerCoins = (playerCoins + " + amount + ") where playerName = '" + player.getName() + "' ;";
             this.getServer().getScheduler().scheduleTask(new dataBaseQuery(query, address, databaseName, username, password), true);
+            return amount;
+
         }
+        return coins;
     }
 
 
