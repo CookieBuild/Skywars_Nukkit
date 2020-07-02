@@ -76,7 +76,7 @@ public class Main extends PluginBase {
 
     @EventHandler
     public void onPlayerPreLoginEvent(PlayerPreLoginEvent event) {
-        if (this.game.state != Game.GAME_OPEN) {
+        if (this.game.state != Game.GAME_OPEN || this.game.getPlayers().size() >= this.game.Capacity) {
             event.getPlayer().kick("A game is already running!");
         }
     }
@@ -200,8 +200,10 @@ public class Main extends PluginBase {
 
 
     public void onPlayerJoinGame(cbPlayer player) {
-        //TODO
-
+        game.addPlayer(player);
+        if (game.getPlayers().size() == game.Capacity) {
+            game.startGame();
+        }
     }
 
 
