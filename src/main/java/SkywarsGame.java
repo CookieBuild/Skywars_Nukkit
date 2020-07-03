@@ -113,4 +113,10 @@ public class SkywarsGame extends Game {
         return numberOfChests;
     }
 
+    @Override
+    public void resetGame() {
+        super.resetGame();
+        int chestFilled = this.refillChests();
+        this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
+    }
 }
