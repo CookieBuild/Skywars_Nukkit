@@ -2,10 +2,12 @@ package main.java;
 
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.block.Block;
 import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.inventory.Inventory;
 import cn.nukkit.item.Item;
+import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.TextFormat;
 
 import java.util.ArrayList;
@@ -51,6 +53,16 @@ public class SkywarsGame extends Game {
         fillingItems.add(Item.get(Item.BOW));
 
         fillingItems.add(Item.get(Item.ENDER_PEARL));
+    }
+
+    @Override
+    public void startGame() {
+        super.startGame();
+
+        for (Vector3 plot : this.plugin.pedestals.get(this.gameNumber)) {
+            this.server.getLevelByName(this.plugin.gameMapName).setBlock(plot.add(0, -1), Block.get(Block.AIR));
+        }
+
     }
 
     @Override
