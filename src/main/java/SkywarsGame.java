@@ -128,7 +128,16 @@ public class SkywarsGame extends Game {
     @Override
     public void resetGame() {
         super.resetGame();
+        this.server.unloadLevel(this.server.getLevelByName(this.plugin.gameMapName), true);
+
+        this.gameNumber = new Random().nextInt(this.plugin.pedestals.size());
+        this.Capacity = this.plugin.pedestals.get(this.gameNumber).size();
+        this.plugin.gameMapName = "game-" + this.plugin.gameMapName;
+        this.server.loadLevel(this.plugin.gameMapName);
+
         int chestFilled = this.refillChests();
         this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
+
+
     }
 }

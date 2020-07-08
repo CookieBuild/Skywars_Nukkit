@@ -66,6 +66,11 @@ public class Main extends PluginBase {
 
 
         this.game = new SkywarsGame(new Random().nextInt(numberOfMaps), this.getServer(), this);
+        this.game.resetGame();
+
+        this.getServer().getScheduler().scheduleRepeatingTask(() -> {
+            this.game.tick();
+        }, 20);
 
     }
 
@@ -125,8 +130,7 @@ public class Main extends PluginBase {
                 } else {
                     if (event instanceof EntityDamageByEntityEvent) {
                         if (((EntityDamageByEntityEvent) event).getDamager() instanceof cbPlayer) {
-                            cbPlayer damager = (cbPlayer) ((EntityDamageByEntityEvent) event).getDamager();
-                            player.lastHitPlayer = damager;
+                            player.lastHitPlayer = (cbPlayer) ((EntityDamageByEntityEvent) event).getDamager();
                         }
                     }
                 }
