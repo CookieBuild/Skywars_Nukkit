@@ -8,6 +8,7 @@ import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.player.*;
 import cn.nukkit.item.Item;
+import cn.nukkit.level.Location;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
@@ -155,13 +156,32 @@ public class Main extends PluginBase {
     }
 
     @EventHandler
-    public void onBlockBreaked(BlockBreakEvent event) {
+    public void onBlockBreak(BlockBreakEvent event) {
         cbPlayer player = (cbPlayer) event.getPlayer();
         if (!player.isInGame) {
             event.setCancelled();
         } else {
             if (!this.game.hasStarted()) {
                 event.setCancelled();
+            }
+        }
+    }
+
+
+    public void sendPopups() {
+        String playerCount = this.getServer().getOnlinePlayers().size() + "/" + game.Capacity;
+
+        for (Player player : this.getServer().getOnlinePlayers().values()) {
+
+
+            if (this.game.state == Game.GAME_OPEN) {
+                String text = TextFormat.RED + (game.startTimer > 0 ? " Starting in " + (game.START_DELAY - game.startTimer) + " " : " Waiting for players to join... ") + TextFormat.BLUE + playerCount;
+                player.sendPopup(text);
+            } else {
+
+                String text = "" + TextFormat.YELLOW + game.getPlayers().size() + TextFormat.GREEN + "players remaining";
+
+                player.sendPopup(text);
             }
         }
     }
@@ -208,7 +228,8 @@ public class Main extends PluginBase {
 
 
     public void teleportToGame(cbPlayer player) {
-        //TODO
+        player.teleport(Location.fromObject(this.pedestals.get(this.game.gameNumber).get(this.game.getPlayers().indexOf(player)), this.getServer().getLevelByName(gameMapName)));
+        player.setFoodEnabled(false);
     }
 
 

@@ -1,10 +1,10 @@
 package main.java.Data;
 
 import cn.nukkit.scheduler.AsyncTask;
-import com.mysql.jdbc.Connection;
-import com.mysql.jdbc.PreparedStatement;
 
+import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
@@ -39,7 +39,7 @@ public class dataBaseQuery extends AsyncTask {
             PreparedStatement preparedStatement = (PreparedStatement) connect.prepareStatement(this.query);
             preparedStatement.executeUpdate();
             preparedStatement.close();
-            //connect.close();
+            connect.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
