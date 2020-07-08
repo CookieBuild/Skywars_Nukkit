@@ -112,7 +112,7 @@ public class cbPlayer extends Player {
 
     public void loginComplete() {
         this.getServer().getScheduler().scheduleDelayedTask(() -> {
-            this.sendMessage(TextFormat.GREEN + "Welcome to " + TextFormat.AQUA + "Cookie " + TextFormat.YELLOW + "Build" + TextFormat.DARK_PURPLE + " BuildBattles!");
+            this.sendMessage(TextFormat.GREEN + "Welcome to " + TextFormat.AQUA + "Cookie " + TextFormat.YELLOW + "Build" + TextFormat.DARK_BLUE + " SkyWars!");
 
         }, 80);
     }

@@ -1,13 +1,16 @@
 package main.java;
 
 import cn.nukkit.Player;
+import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.block.BlockBreakEvent;
 import cn.nukkit.event.block.BlockPlaceEvent;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
+import cn.nukkit.event.inventory.InventoryOpenEvent;
 import cn.nukkit.event.player.*;
+import cn.nukkit.inventory.InventoryType;
 import cn.nukkit.item.Item;
 import cn.nukkit.level.Location;
 import cn.nukkit.math.Vector3;
@@ -122,6 +125,16 @@ public class Main extends PluginBase implements Listener {
     }
 
     @EventHandler
+    public void onPlayerInteract(InventoryOpenEvent event) {
+        if (event.getInventory().getType() == InventoryType.CHEST) {
+            if (event.getInventory().getHolder() instanceof BlockEntityChest) {
+                this.game.fillChest((BlockEntityChest) event.getInventory().getHolder());
+                this.getServer().getLogger().info("Chests filled on the fly!");
+            }
+        }
+    }
+
+    @EventHandler
     public void onEntityDamaged(EntityDamageEvent event) {
         if (event.getEntity() instanceof cbPlayer) {
             cbPlayer player = (cbPlayer) event.getEntity();
@@ -210,6 +223,7 @@ public class Main extends PluginBase implements Listener {
                 player.lastHitPlayer = null;
             }
 
+            this.game.removePlayer(player);
             player.getInventory().clearAll();
 
             player.setHealth(20);

@@ -17,6 +17,8 @@ public class SkywarsGame extends Game {
 
     List<Item> fillingItems;
 
+    List<BlockEntityChest> chestsFilled = new ArrayList<>();
+
     public SkywarsGame(int gameNumber, Server server, Main plugin) {
         super(gameNumber, server, plugin);
 
@@ -43,13 +45,39 @@ public class SkywarsGame extends Game {
         fillingItems.add(Item.get(Item.GOLD_BOOTS));
 
         fillingItems.add(Item.get(Item.WOODEN_SWORD));
+        fillingItems.add(Item.get(Item.GOLDEN_SWORD));
         fillingItems.add(Item.get(Item.IRON_SWORD));
 
+
+        fillingItems.add(Item.get(Item.WOODEN_AXE));
+        fillingItems.add(Item.get(Item.IRON_AXE));
+        fillingItems.add(Item.get(Item.DIAMOND_AXE));
+
+        fillingItems.add(Item.get(Item.IRON_PICKAXE));
+        fillingItems.add(Item.get(Item.DIAMOND_PICKAXE));
+
+        fillingItems.add(Item.get(Item.STEAK));
+        fillingItems.add(Item.get(Item.BREAD));
+        fillingItems.add(Item.get(Item.CARROT));
+        fillingItems.add(Item.get(Item.GOLDEN_APPLE));
 
         Item arrows = Item.get(Item.ARROW);
         arrows.setCount(6);
         fillingItems.add(arrows);
         fillingItems.add(Item.get(Item.BOW));
+
+
+        Item block1 = Item.get(Item.PLANKS);
+        arrows.setCount(32);
+        fillingItems.add(block1);
+
+        Item block2 = Item.get(Item.WOOL);
+        arrows.setCount(32);
+        fillingItems.add(block2);
+
+        Item block3 = Item.get(Item.STONE);
+        arrows.setCount(32);
+        fillingItems.add(block3);
 
         fillingItems.add(Item.get(Item.ENDER_PEARL));
     }
@@ -62,11 +90,6 @@ public class SkywarsGame extends Game {
         for (Vector3 plot : this.plugin.pedestals.get(this.gameNumber)) {
             this.server.getLevelByName(this.plugin.gameMapName).setBlock(plot.add(0, -1), Block.get(Block.AIR));
         }*/
-
-
-        int chestFilled = this.refillChests();
-        this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
-
 
     }
 
@@ -92,7 +115,7 @@ public class SkywarsGame extends Game {
             for (Player p : this.server.getOnlinePlayers().values()) {
 
                 if (this.plugin.isProxyEnabled) {
-                    ((cbPlayer) p).proxyTransfer("BbLobby-1");
+                    ((cbPlayer) p).proxyTransfer("Lobby-1");
                 } else {
                     p.kick("End of game.");
                 }
@@ -107,10 +130,6 @@ public class SkywarsGame extends Game {
             // Game has ended. Everyone is gone, time to reset
             this.resetGame();
 
-            // Unload + reload to reset map
-            this.server.unloadLevel(this.server.getLevelByName(this.plugin.gameMapName), true);
-            this.server.loadLevel(this.plugin.gameMapName);
-
             return true;
         } else {
             return false;
@@ -121,13 +140,14 @@ public class SkywarsGame extends Game {
     private int refillChests() {
         int numberOfChests = 0;
         Random random = new Random();
+        int numverOfBlockEntites = 0;
         for (BlockEntity blockEntity : this.server.getLevelByName(this.plugin.gameMapName).getBlockEntities().values()) {
             if (blockEntity instanceof BlockEntityChest) {
                 numberOfChests++;
 
                 Inventory inventory = ((BlockEntityChest) blockEntity).getInventory();
                 for (int i = 0; i > inventory.getSize(); i++) {
-                    if (random.nextDouble() > 0.6) {
+                    if (random.nextDouble() > 0.8) {
                         inventory.setItem(i, fillingItems.get(random.nextInt(fillingItems.size())));
                     }
                 }
@@ -137,6 +157,21 @@ public class SkywarsGame extends Game {
 
 
         return numberOfChests;
+    }
+
+
+    public void fillChest(BlockEntityChest blockEntity) {
+        if (chestsFilled.contains(blockEntity)) {
+            return;
+        }
+        chestsFilled.add(blockEntity);
+        Random random = new Random();
+        Inventory inventory = ((BlockEntityChest) blockEntity).getInventory();
+        for (int i = 0; i < inventory.getSize(); i++) {
+            if (random.nextDouble() > 0.6) {
+                inventory.setItem(i, fillingItems.get(random.nextInt(fillingItems.size())));
+            }
+        }
     }
 
     @Override
@@ -154,6 +189,18 @@ public class SkywarsGame extends Game {
         this.server.getLogger().info("Game in creation! " + this.plugin.gameMapName);
         this.server.loadLevel(this.plugin.gameMapName);
         Level level = this.server.getLevelByName(this.plugin.gameMapName);
+        level.setTime(6000);
+        level.stopTime();
+//        for(int x = 0; x < 1000; x+=16){
+//            for(int z = 0; z < 1000; z+=16){
+//                level.loadChunk(x,z,false);
+//            }
+//        }
+
+        int chestFilled = this.refillChests();
+        this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
+//
+//        chestsFilled.clear();
 
 
     }
