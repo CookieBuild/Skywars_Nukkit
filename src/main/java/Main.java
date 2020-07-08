@@ -72,6 +72,7 @@ public class Main extends PluginBase {
             this.game.tick();
         }, 20);
 
+        this.getServer().getScheduler().scheduleRepeatingTask(this::sendPopups, 10);
     }
 
     @EventHandler
