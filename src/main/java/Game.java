@@ -15,7 +15,7 @@ public abstract class Game {
     public final static int GAME_STARTING = 1;
     public final static int GAME_RUNNING = 2;
     public final static int GAME_FINISHED = 3;
-    final public int START_DELAY = 20;
+    final public int START_DELAY = 40;
 
     public boolean isFilling = false;
 

@@ -1,6 +1,7 @@
 package main.java;
 
 import cn.nukkit.Player;
+import cn.nukkit.block.BlockChest;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
@@ -9,6 +10,7 @@ import cn.nukkit.event.block.BlockPlaceEvent;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.inventory.InventoryOpenEvent;
+import cn.nukkit.event.level.WeatherChangeEvent;
 import cn.nukkit.event.player.*;
 import cn.nukkit.inventory.InventoryType;
 import cn.nukkit.item.Item;
@@ -176,6 +178,11 @@ public class Main extends PluginBase implements Listener {
     }
 
     @EventHandler
+    public void onWeatherChange(WeatherChangeEvent event) {
+        event.setCancelled();
+    }
+
+    @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         cbPlayer player = (cbPlayer) event.getPlayer();
         if (!player.isInGame) {
@@ -183,6 +190,12 @@ public class Main extends PluginBase implements Listener {
         } else {
             if (!this.game.hasStarted()) {
                 event.setCancelled();
+            } else {
+                if (event.getBlock() instanceof BlockChest) {
+                    BlockChest blockChest = (BlockChest) event.getBlock();
+                    event.setCancelled();
+                    event.getPlayer().sendMessage("Can't break chests yet! Working on it...");
+                }
             }
         }
     }
@@ -218,12 +231,12 @@ public class Main extends PluginBase implements Listener {
 
             if (player.lastHitPlayer != null && isDataBaseEnabled) {
                 int coinsGiven = this.giveCoins(player.lastHitPlayer, 1);
-                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[" + gameModeName + "] You earned " + coinsGiven + "coins for killing " + player.getNameTag().replace("\n", " "));
+                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[" + gameModeName + "] You earned " + coinsGiven + " coins for killing " + player.getNameTag().replace("\n", " "));
 
                 player.lastHitPlayer = null;
             }
 
-            this.game.removePlayer(player);
+
             player.getInventory().clearAll();
 
             player.setHealth(20);
@@ -234,6 +247,11 @@ public class Main extends PluginBase implements Listener {
             player.setFoodEnabled(false);
 
             player.setGamemode(Player.SPECTATOR);
+            player.sendTitle("You are now spectating");
+
+            if (player.getY() < 10) {
+                player.teleport(player.getPosition().add(0, 60));
+            }
 
         }
     }
@@ -241,6 +259,7 @@ public class Main extends PluginBase implements Listener {
 
     public void onPlayerJoinGame(cbPlayer player) {
         game.addPlayer(player);
+        player.setCheckMovement(false);
         if (game.getPlayers().size() == game.Capacity) {
             game.startGame();
         }
