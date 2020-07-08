@@ -2,6 +2,7 @@ package main.java;
 
 import cn.nukkit.Player;
 import cn.nukkit.event.EventHandler;
+import cn.nukkit.event.Listener;
 import cn.nukkit.event.block.BlockBreakEvent;
 import cn.nukkit.event.block.BlockPlaceEvent;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
@@ -20,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class Main extends PluginBase {
+public class Main extends PluginBase implements Listener {
 
     public final String gameModeName = "SkyWars";
 
@@ -65,8 +66,9 @@ public class Main extends PluginBase {
         }
 
 
+        this.getServer().getPluginManager().registerEvents(this, this);
+
         this.game = new SkywarsGame(new Random().nextInt(numberOfMaps), this.getServer(), this);
-        this.game.resetGame();
 
         this.getServer().getScheduler().scheduleRepeatingTask(() -> {
             this.game.tick();
@@ -172,7 +174,6 @@ public class Main extends PluginBase {
         }
     }
 
-
     public void sendPopups() {
         String playerCount = this.getServer().getOnlinePlayers().size() + "/" + game.Capacity;
 
@@ -184,7 +185,7 @@ public class Main extends PluginBase {
                 player.sendPopup(text);
             } else {
 
-                String text = "" + TextFormat.YELLOW + game.getPlayers().size() + TextFormat.GREEN + "players remaining";
+                String text = "" + TextFormat.YELLOW + game.getPlayers().size() + " " + TextFormat.GREEN + "players remaining";
 
                 player.sendPopup(text);
             }

@@ -1,0 +1,9 @@
+name: SkyWars
+main: main.java.Main
+
+version: "1.0.0"
+api: ["1.0.0"]
+
+load: POSTWORLD
+author: Guillaume351
+description: Cookie Build SkyWars - for Nukkit

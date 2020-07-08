@@ -2,12 +2,11 @@ package main.java;
 
 import cn.nukkit.Player;
 import cn.nukkit.Server;
-import cn.nukkit.block.Block;
 import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.inventory.Inventory;
 import cn.nukkit.item.Item;
-import cn.nukkit.math.Vector3;
+import cn.nukkit.level.Level;
 import cn.nukkit.utils.TextFormat;
 
 import java.util.ArrayList;
@@ -59,10 +58,25 @@ public class SkywarsGame extends Game {
     public void startGame() {
         super.startGame();
 
+        /*
         for (Vector3 plot : this.plugin.pedestals.get(this.gameNumber)) {
             this.server.getLevelByName(this.plugin.gameMapName).setBlock(plot.add(0, -1), Block.get(Block.AIR));
-        }
+        }*/
 
+
+        int chestFilled = this.refillChests();
+        this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
+
+
+    }
+
+    @Override
+    public void addPlayer(cbPlayer player) {
+        super.addPlayer(player);
+        if (startTimer == 0 && this.getPlayers().size() >= 2) {
+            startTimer += 1;
+            this.server.getLogger().info("Starting game start cooldown...");
+        }
     }
 
     @Override
@@ -128,15 +142,18 @@ public class SkywarsGame extends Game {
     @Override
     public void resetGame() {
         super.resetGame();
-        this.server.unloadLevel(this.server.getLevelByName(this.plugin.gameMapName), true);
+
+        if (!this.plugin.gameMapName.equals("game")) { // If it's not first game since boot
+            this.server.unloadLevel(this.server.getLevelByName(this.plugin.gameMapName), true);
+        }
+
 
         this.gameNumber = new Random().nextInt(this.plugin.pedestals.size());
         this.Capacity = this.plugin.pedestals.get(this.gameNumber).size();
-        this.plugin.gameMapName = "game-" + this.plugin.gameMapName;
+        this.plugin.gameMapName = "game-" + this.gameNumber;
+        this.server.getLogger().info("Game in creation! " + this.plugin.gameMapName);
         this.server.loadLevel(this.plugin.gameMapName);
-
-        int chestFilled = this.refillChests();
-        this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
+        Level level = this.server.getLevelByName(this.plugin.gameMapName);
 
 
     }

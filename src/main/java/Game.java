@@ -15,7 +15,7 @@ public abstract class Game {
     public final static int GAME_STARTING = 1;
     public final static int GAME_RUNNING = 2;
     public final static int GAME_FINISHED = 3;
-    final public int START_DELAY = 60;
+    final public int START_DELAY = 20;
 
     public boolean isFilling = false;
 
@@ -33,12 +33,11 @@ public abstract class Game {
     public Game(int gameNumber, Server server, Main plugin) {
         this.gameNumber = gameNumber;
         this.plugin = plugin;
-        this.resetGame();
         this.server = server;
+        this.resetGame();
     }
 
     public void addPlayer(cbPlayer player) {
-
         if (!this.players.contains(player)) {
             this.players.add(player);
         } else {
