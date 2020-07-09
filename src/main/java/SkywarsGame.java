@@ -6,7 +6,10 @@ import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.inventory.Inventory;
 import cn.nukkit.item.Item;
+import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
+import cn.nukkit.level.Sound;
+import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.TextFormat;
 import de.dytanic.cloudnet.ext.bridge.BridgeHelper;
 import de.dytanic.cloudnet.ext.bridge.nukkit.NukkitCloudNetHelper;
@@ -17,7 +20,9 @@ import java.util.Random;
 
 public class SkywarsGame extends Game {
 
-    List<Item> fillingItems;
+    List<Item> normalItems;
+    List<Item> normalArmor;
+    List<Item> rareItems;
 
     List<BlockEntityChest> chestsFilled = new ArrayList<>();
 
@@ -26,64 +31,78 @@ public class SkywarsGame extends Game {
     public SkywarsGame(int gameNumber, Server server, Main plugin) {
         super(gameNumber, server, plugin);
 
-        fillingItems = new ArrayList<Item>();
+        normalItems = new ArrayList<Item>();
+        normalArmor = new ArrayList<Item>();
+        rareItems = new ArrayList<Item>();
 
-        fillingItems.add(Item.get(Item.LEATHER_CAP));
-        fillingItems.add(Item.get(Item.LEATHER_TUNIC));
-        fillingItems.add(Item.get(Item.LEATHER_PANTS));
-        fillingItems.add(Item.get(Item.LEATHER_BOOTS));
+        normalArmor.add(Item.get(Item.LEATHER_CAP));
+        normalArmor.add(Item.get(Item.LEATHER_TUNIC));
+        normalArmor.add(Item.get(Item.LEATHER_PANTS));
+        normalArmor.add(Item.get(Item.LEATHER_BOOTS));
 
-        fillingItems.add(Item.get(Item.IRON_HELMET));
-        fillingItems.add(Item.get(Item.IRON_CHESTPLATE));
-        fillingItems.add(Item.get(Item.IRON_LEGGINGS));
-        fillingItems.add(Item.get(Item.IRON_BOOTS));
-
-        fillingItems.add(Item.get(Item.DIAMOND_HELMET));
-        fillingItems.add(Item.get(Item.DIAMOND_CHESTPLATE));
-        fillingItems.add(Item.get(Item.DIAMOND_LEGGINGS));
-        fillingItems.add(Item.get(Item.DIAMOND_BOOTS));
-
-        fillingItems.add(Item.get(Item.GOLD_HELMET));
-        fillingItems.add(Item.get(Item.GOLD_CHESTPLATE));
-        fillingItems.add(Item.get(Item.GOLD_LEGGINGS));
-        fillingItems.add(Item.get(Item.GOLD_BOOTS));
-
-        fillingItems.add(Item.get(Item.WOODEN_SWORD));
-        fillingItems.add(Item.get(Item.GOLDEN_SWORD));
-        fillingItems.add(Item.get(Item.IRON_SWORD));
+        normalArmor.add(Item.get(Item.IRON_HELMET));
+        normalArmor.add(Item.get(Item.IRON_CHESTPLATE));
+        normalArmor.add(Item.get(Item.IRON_LEGGINGS));
+        normalArmor.add(Item.get(Item.IRON_BOOTS));
+        normalArmor.add(Item.get(Item.CHAIN_HELMET));
+        normalArmor.add(Item.get(Item.CHAIN_CHESTPLATE));
+        normalArmor.add(Item.get(Item.CHAIN_LEGGINGS));
+        normalArmor.add(Item.get(Item.CHAIN_BOOTS));
 
 
-        fillingItems.add(Item.get(Item.WOODEN_AXE));
-        fillingItems.add(Item.get(Item.IRON_AXE));
-        fillingItems.add(Item.get(Item.DIAMOND_AXE));
+        normalArmor.add(Item.get(Item.GOLD_HELMET));
+        normalArmor.add(Item.get(Item.GOLD_CHESTPLATE));
+        normalArmor.add(Item.get(Item.GOLD_LEGGINGS));
+        normalArmor.add(Item.get(Item.GOLD_BOOTS));
 
-        fillingItems.add(Item.get(Item.IRON_PICKAXE));
-        fillingItems.add(Item.get(Item.DIAMOND_PICKAXE));
+        normalItems.add(Item.get(Item.WOODEN_SWORD));
+        normalItems.add(Item.get(Item.GOLDEN_SWORD));
+        normalItems.add(Item.get(Item.IRON_SWORD));
 
-        fillingItems.add(Item.get(Item.STEAK));
-        fillingItems.add(Item.get(Item.BREAD));
-        fillingItems.add(Item.get(Item.CARROT));
-        fillingItems.add(Item.get(Item.GOLDEN_APPLE));
+
+        normalItems.add(Item.get(Item.WOODEN_AXE));
+        normalItems.add(Item.get(Item.IRON_AXE));
+        normalItems.add(Item.get(Item.DIAMOND_AXE));
+
+        normalItems.add(Item.get(Item.IRON_PICKAXE));
+        normalItems.add(Item.get(Item.DIAMOND_PICKAXE));
+
+        normalItems.add(Item.get(Item.STEAK));
+        normalItems.add(Item.get(Item.BREAD));
+        normalItems.add(Item.get(Item.CARROT));
+
 
         Item arrows = Item.get(Item.ARROW);
         arrows.setCount(6);
-        fillingItems.add(arrows);
-        fillingItems.add(Item.get(Item.BOW));
+        normalItems.add(arrows);
+        normalItems.add(Item.get(Item.BOW));
 
 
         Item block1 = Item.get(Item.PLANKS);
-        block1.setCount(32);
-        fillingItems.add(block1);
+        block1.setCount(64);
+        normalItems.add(block1);
 
         Item block2 = Item.get(Item.WOOL);
-        block2.setCount(32);
-        fillingItems.add(block2);
+        block2.setCount(64);
+        normalItems.add(block2);
+
 
         Item block3 = Item.get(Item.STONE);
-        block3.setCount(32);
-        fillingItems.add(block3);
+        block3.setCount(64);
+        normalItems.add(block3);
 
-        fillingItems.add(Item.get(Item.ENDER_PEARL));
+        Item block4 = Item.get(Item.COBBLESTONE);
+        block4.setCount(64);
+        normalItems.add(block4);
+
+        rareItems.add(Item.get(Item.TNT));
+        rareItems.add(Item.get(Item.GOLDEN_APPLE));
+        rareItems.add(Item.get(Item.ELYTRA));
+        rareItems.add(Item.get(Item.ENDER_PEARL));
+        rareItems.add(Item.get(ItemBlock.DIAMOND_HELMET));
+        rareItems.add(Item.get(Item.DIAMOND_CHESTPLATE));
+        rareItems.add(Item.get(Item.DIAMOND_LEGGINGS));
+        rareItems.add(Item.get(Item.DIAMOND_BOOTS));
     }
 
     @Override
@@ -121,7 +140,8 @@ public class SkywarsGame extends Game {
 
 
                 int coinsGiven = plugin.giveCoins(winner, 8);
-                winner.sendMessage(TextFormat.GREEN + "> You won the game ! You received " + coinsGiven + " coins");
+                winner.sendTitle(TextFormat.GREEN + "> You won the game !", "You received " + coinsGiven + " coins");
+                winner.getLevel().addSound(winner.getLocation(), Sound.RANDOM_LEVELUP);
                 this.getPlayers().remove(winner);
             }
 
@@ -171,7 +191,7 @@ public class SkywarsGame extends Game {
                 Inventory inventory = ((BlockEntityChest) blockEntity).getInventory();
                 for (int i = 0; i > inventory.getSize(); i++) {
                     if (random.nextDouble() > 0.8) {
-                        inventory.setItem(i, fillingItems.get(random.nextInt(fillingItems.size())));
+                        inventory.setItem(i, normalItems.get(random.nextInt(normalItems.size())));
                     }
                 }
 
@@ -190,9 +210,29 @@ public class SkywarsGame extends Game {
         chestsFilled.add(blockEntity);
         Random random = new Random();
         Inventory inventory = ((BlockEntityChest) blockEntity).getInventory();
+
+
+        boolean isAMiddleChest = true;
+        for (Vector3 plot : this.plugin.pedestals.get(this.gameNumber)) {
+            if (plot.distance(blockEntity.getLocation()) < 10) {
+                isAMiddleChest = false;
+            }
+        }
+
+
         for (int i = 0; i < inventory.getSize(); i++) {
-            if (random.nextDouble() > 0.6) {
-                inventory.setItem(i, fillingItems.get(random.nextInt(fillingItems.size())));
+            double nextDouble = random.nextDouble();
+            if (nextDouble > 0.8) {
+                Item item = normalItems.get(random.nextInt(normalItems.size()));
+                item.setCount(Integer.max(1, random.nextInt(item.count + 1)));
+                inventory.setItem(i, item);
+            } else if (nextDouble < 0.2) {
+                inventory.setItem(i, normalArmor.get(random.nextInt(normalArmor.size())));
+            }
+
+
+            if (random.nextDouble() > 0.9 && isAMiddleChest) {
+                inventory.setItem(i, rareItems.get(random.nextInt(rareItems.size())));
             }
         }
     }

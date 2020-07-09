@@ -2,6 +2,7 @@ package main.java;
 
 import cn.nukkit.Player;
 import cn.nukkit.block.BlockChest;
+import cn.nukkit.block.BlockTNT;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
@@ -99,7 +100,7 @@ public class Main extends PluginBase implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         event.getPlayer().setFoodEnabled(false);
         event.setJoinMessage("");
-
+        event.getPlayer().getSkin().setTrusted(true);
         if (isDataBaseEnabled) {
             this.getServer().getScheduler().scheduleTask(new getPlayerDataTask(event.getPlayer().getName(), address, databaseName, username, password), true);
         }
@@ -127,7 +128,7 @@ public class Main extends PluginBase implements Listener {
     }
 
     @EventHandler
-    public void onPlayerInteract(InventoryOpenEvent event) {
+    public void onInventoryOpen(InventoryOpenEvent event) {
         if (event.getInventory().getType() == InventoryType.CHEST) {
             if (event.getInventory().getHolder() instanceof BlockEntityChest) {
                 this.game.fillChest((BlockEntityChest) event.getInventory().getHolder());
@@ -173,6 +174,10 @@ public class Main extends PluginBase implements Listener {
         } else {
             if (!this.game.hasStarted()) {
                 event.setCancelled();
+            } else {
+                if (event.getBlock() instanceof BlockTNT) {
+                    ((BlockTNT) event.getBlock()).prime(80, player);
+                }
             }
         }
     }
@@ -233,7 +238,15 @@ public class Main extends PluginBase implements Listener {
                 int coinsGiven = this.giveCoins(player.lastHitPlayer, 1);
                 player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[" + gameModeName + "] You earned " + coinsGiven + " coins for killing " + player.getNameTag().replace("\n", " "));
 
+                for (Player p : this.getServer().getOnlinePlayers().values()) {
+                    p.sendMessage(TextFormat.GREEN + "> " + TextFormat.RESET + player.lastHitPlayer.getDisplayName() + TextFormat.GREEN + " killed " + TextFormat.RESET + player.getDisplayName() + TextFormat.GREEN + "!");
+                }
+
                 player.lastHitPlayer = null;
+            } else {
+                for (Player p : this.getServer().getOnlinePlayers().values()) {
+                    p.sendMessage(TextFormat.GREEN + "> " + TextFormat.RESET + player.getDisplayName() + TextFormat.GREEN + " died!");
+                }
             }
 
 
@@ -249,8 +262,8 @@ public class Main extends PluginBase implements Listener {
             player.setGamemode(Player.SPECTATOR);
             player.sendTitle("You are now spectating");
 
-            if (player.getY() < 10) {
-                player.teleport(player.getPosition().add(0, 60));
+            if (player.getY() <= 0) {
+                player.teleport(player.getPosition().add(0, 60 - player.getY()));
             }
 
         }

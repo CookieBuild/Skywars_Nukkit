@@ -1,6 +1,7 @@
 package main.java;
 
 import cn.nukkit.Server;
+import cn.nukkit.level.Sound;
 import cn.nukkit.utils.TextFormat;
 
 import java.util.ArrayList;
@@ -66,6 +67,8 @@ public abstract class Game {
         if (this.state == GAME_OPEN) {
             if (startTimer > 0) {
                 startTimer++;
+
+
             }
             if (startTimer >= START_DELAY) {
                 this.startGame();
@@ -79,6 +82,7 @@ public abstract class Game {
         this.isFilling = false;
         for (cbPlayer player : players) {
             this.plugin.teleportToGame(player);
+            player.getLevel().addSound(player.getLocation(), Sound.NOTE_XYLOPHONE, 1, (float) 0.5);
             player.sendMessage(TextFormat.GREEN + "> The game has started!");
         }
 
