@@ -9,6 +9,7 @@ import cn.nukkit.item.Item;
 import cn.nukkit.item.ItemBlock;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.Sound;
+import cn.nukkit.level.particle.RedstoneParticle;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.TextFormat;
 import de.dytanic.cloudnet.ext.bridge.BridgeHelper;
@@ -77,6 +78,10 @@ public class SkywarsGame extends Game {
         normalItems.add(arrows);
         normalItems.add(Item.get(Item.BOW));
 
+
+        Item eggs = Item.get(Item.EGG);
+        eggs.setCount(6);
+        normalItems.add(eggs);
 
         Item block1 = Item.get(Item.PLANKS);
         block1.setCount(63);
@@ -176,6 +181,15 @@ public class SkywarsGame extends Game {
             }, 80);
             return true;
         } else {
+            if (this.getPlayers().size() == 2) {
+                if (this.getPlayers().get(0).distance(this.getPlayers().get(1).getLocation()) > 16) {
+                    for (int i = 0; i < 100; i++) {
+                        for (Player p : this.getPlayers()) {
+                            p.getLevel().addParticle(new RedstoneParticle(p.getPosition().add(0, i / 10f)));
+                        }
+                    }
+                }
+            }
             return false;
         }
 
@@ -224,10 +238,10 @@ public class SkywarsGame extends Game {
         for (int i = 0; i < inventory.getSize(); i++) {
             double nextDouble = random.nextDouble();
             if (nextDouble > 0.8) {
-                Item item = normalItems.get(random.nextInt(normalItems.size()));
+                Item item = normalItems.get(random.nextInt(normalItems.size())).clone();
                 item.setCount(Integer.max(1, random.nextInt(item.count + 1)));
                 inventory.setItem(i, item);
-            } else if (nextDouble < 0.2) {
+            } else if (nextDouble < 0.15) {
                 inventory.setItem(i, normalArmor.get(random.nextInt(normalArmor.size())));
             }
 

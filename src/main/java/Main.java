@@ -130,6 +130,15 @@ public class Main extends PluginBase implements Listener {
     }
 
     @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getPlayer().isSpectator() && this.isProxyEnabled) {
+            if (event.getItem().getId() == Item.COMPASS) {
+                ((cbPlayer) event.getPlayer()).proxyTransfer("Lobby-1");
+            }
+        }
+    }
+
+    @EventHandler
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (event.getInventory().getType() == InventoryType.CHEST) {
             if (event.getInventory().getHolder() instanceof BlockEntityChest) {
@@ -149,6 +158,7 @@ public class Main extends PluginBase implements Listener {
                 if (!this.game.hasStarted()) {
                     event.setCancelled();
                 } else {
+
                     if (event instanceof EntityDamageByEntityEvent) {
                         if (((EntityDamageByEntityEvent) event).getDamager() instanceof cbPlayer) {
                             player.lastHitPlayer = (cbPlayer) ((EntityDamageByEntityEvent) event).getDamager();
@@ -158,6 +168,11 @@ public class Main extends PluginBase implements Listener {
                                 player.lastHitPlayer.getLevel().addSound(player.lastHitPlayer.getLocation(), Sound.RANDOM_ORB, 1, 1, playerCollection);
                             }
                         }
+
+                        this.getServer().getScheduler().scheduleDelayedTask(() -> {
+                            player.setNameTag(player.getDisplayName() + "\n" + (player.getHealth()) + "❤");
+                        }, 1);
+
                     }
                 }
 
@@ -226,7 +241,6 @@ public class Main extends PluginBase implements Listener {
             } else {
 
                 String text = "" + TextFormat.YELLOW + game.getPlayers().size() + " " + TextFormat.GREEN + "players remaining";
-
                 player.sendPopup(text);
             }
         }
@@ -245,7 +259,7 @@ public class Main extends PluginBase implements Listener {
 
             if (player.lastHitPlayer != null && isDataBaseEnabled) {
                 int coinsGiven = this.giveCoins(player.lastHitPlayer, 1);
-                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[" + gameModeName + "] You earned " + coinsGiven + " coins for killing " + player.getNameTag().replace("\n", " "));
+                player.lastHitPlayer.sendMessage(TextFormat.GREEN + "[" + gameModeName + "] You earned " + coinsGiven + " coins for killing " + player.getDisplayName());
 
                 for (Player p : this.getServer().getOnlinePlayers().values()) {
                     p.sendMessage(TextFormat.GREEN + "> " + TextFormat.RESET + player.lastHitPlayer.getDisplayName() + TextFormat.GREEN + " killed " + TextFormat.RESET + player.getDisplayName() + TextFormat.GREEN + "!");
@@ -271,6 +285,10 @@ public class Main extends PluginBase implements Listener {
             player.setGamemode(Player.SPECTATOR);
             player.sendTitle("You are now spectating");
 
+            Item compass = Item.get(Item.COMPASS);
+            compass.setCustomName("Go back to lobby");
+            player.getInventory().setItem(8, compass);
+
             if (player.getY() <= 0) {
                 player.teleport(player.getPosition().add(0, 60 - player.getY()));
             }
@@ -291,6 +309,9 @@ public class Main extends PluginBase implements Listener {
     public void teleportToGame(cbPlayer player) {
         player.teleport(Location.fromObject(this.pedestals.get(this.game.gameNumber).get(this.game.getPlayers().indexOf(player)), this.getServer().getLevelByName(gameMapName)));
         player.setFoodEnabled(false);
+        player.removeAllEffects();
+        player.setHealth(20);
+        player.setNameTag(player.getDisplayName() + "\n" + (player.getHealth() + "❤"));
     }
 
 
