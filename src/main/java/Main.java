@@ -21,6 +21,7 @@ import cn.nukkit.math.Vector3;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.TextFormat;
+import main.java.CustomInterface.screens.AllServersScreen;
 import main.java.Data.dataBaseQuery;
 import main.java.Data.getPlayerDataTask;
 
@@ -130,10 +131,10 @@ public class Main extends PluginBase implements Listener {
     }
 
     @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
+    public void onItemHeldEvent(PlayerItemHeldEvent event) {
         if (event.getPlayer().isSpectator() && this.isProxyEnabled) {
             if (event.getItem().getId() == Item.COMPASS) {
-                ((cbPlayer) event.getPlayer()).proxyTransfer("Lobby-1");
+                event.getPlayer().showFormWindow(new AllServersScreen(TextFormat.GREEN + "Go back to lobby", "Press the button to leave the game"));
             }
         }
     }
