@@ -79,22 +79,23 @@ public class SkywarsGame extends Game {
 
 
         Item block1 = Item.get(Item.PLANKS);
-        block1.setCount(64);
+        block1.setCount(63);
         normalItems.add(block1);
 
         Item block2 = Item.get(Item.WOOL);
-        block2.setCount(64);
+        block2.setCount(63);
         normalItems.add(block2);
 
 
         Item block3 = Item.get(Item.STONE);
-        block3.setCount(64);
+        block3.setCount(63);
         normalItems.add(block3);
 
         Item block4 = Item.get(Item.COBBLESTONE);
-        block4.setCount(64);
+        block4.setCount(63);
         normalItems.add(block4);
 
+        rareItems.add(Item.get(Item.TRIDENT));
         rareItems.add(Item.get(Item.TNT));
         rareItems.add(Item.get(Item.GOLDEN_APPLE));
         rareItems.add(Item.get(Item.ELYTRA));

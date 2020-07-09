@@ -16,6 +16,7 @@ import cn.nukkit.event.player.*;
 import cn.nukkit.inventory.InventoryType;
 import cn.nukkit.item.Item;
 import cn.nukkit.level.Location;
+import cn.nukkit.level.Sound;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
@@ -24,6 +25,7 @@ import main.java.Data.dataBaseQuery;
 import main.java.Data.getPlayerDataTask;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
@@ -150,6 +152,11 @@ public class Main extends PluginBase implements Listener {
                     if (event instanceof EntityDamageByEntityEvent) {
                         if (((EntityDamageByEntityEvent) event).getDamager() instanceof cbPlayer) {
                             player.lastHitPlayer = (cbPlayer) ((EntityDamageByEntityEvent) event).getDamager();
+                            if (event.getCause() == EntityDamageEvent.DamageCause.PROJECTILE) {
+                                Collection<Player> playerCollection = new ArrayList<>();
+                                playerCollection.add(player.lastHitPlayer);
+                                player.lastHitPlayer.getLevel().addSound(player.lastHitPlayer.getLocation(), Sound.RANDOM_ORB, 1, 1, playerCollection);
+                            }
                         }
                     }
                 }
@@ -176,7 +183,9 @@ public class Main extends PluginBase implements Listener {
                 event.setCancelled();
             } else {
                 if (event.getBlock() instanceof BlockTNT) {
-                    ((BlockTNT) event.getBlock()).prime(80, player);
+                    this.getServer().getScheduler().scheduleDelayedTask(() -> {
+                        ((BlockTNT) event.getBlock()).prime(80, player);
+                    }, 1);
                 }
             }
         }
