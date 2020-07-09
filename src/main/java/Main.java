@@ -5,11 +5,13 @@ import cn.nukkit.block.BlockChest;
 import cn.nukkit.block.BlockTNT;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.event.EventHandler;
+import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
 import cn.nukkit.event.block.BlockBreakEvent;
 import cn.nukkit.event.block.BlockPlaceEvent;
 import cn.nukkit.event.entity.EntityDamageByEntityEvent;
 import cn.nukkit.event.entity.EntityDamageEvent;
+import cn.nukkit.event.entity.EntityRegainHealthEvent;
 import cn.nukkit.event.inventory.InventoryOpenEvent;
 import cn.nukkit.event.level.WeatherChangeEvent;
 import cn.nukkit.event.player.*;
@@ -210,6 +212,27 @@ public class Main extends PluginBase implements Listener {
     @EventHandler
     public void onWeatherChange(WeatherChangeEvent event) {
         event.setCancelled();
+    }
+
+    @EventHandler
+    public void onHealthRegain(EntityRegainHealthEvent event) {
+        if (this.game.hasStarted() && event.getEntity() instanceof cbPlayer) {
+            this.getServer().getScheduler().scheduleDelayedTask(() -> {
+                event.getEntity().setNameTag(((cbPlayer) event.getEntity()).getDisplayName() + "\n" + (event.getEntity().getHealth()) + "❤");
+            }, 1);
+        }
+    }
+
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.NORMAL)
+    public void onFormResponse(PlayerFormRespondedEvent event) {
+        if (event.getResponse() == null || event.getWindow() == null) return;
+
+        if ((event.getWindow() instanceof AllServersScreen)) {
+
+            ((AllServersScreen) event.getWindow()).onResponse(event);
+        }
+
     }
 
     @EventHandler

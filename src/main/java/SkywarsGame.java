@@ -185,15 +185,18 @@ public class SkywarsGame extends Game {
                 if (this.getPlayers().get(0).distance(this.getPlayers().get(1).getLocation()) > 16) {
                     for (int i = 0; i < 100; i++) {
                         for (Player p : this.getPlayers()) {
-                            p.getLevel().addParticle(new RedstoneParticle(p.getPosition().add(0, i / 10f)));
+                            if (p.isSneaking()) {
+                                p.getLevel().addParticle(new RedstoneParticle(p.getPosition().add(0, i / 2f)));
+                            }
                         }
+
                     }
                 }
             }
-            return false;
         }
-
+        return false;
     }
+
 
     private int refillChests() {
         int numberOfChests = 0;
