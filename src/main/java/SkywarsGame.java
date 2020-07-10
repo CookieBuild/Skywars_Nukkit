@@ -2,7 +2,6 @@ package main.java;
 
 import cn.nukkit.Player;
 import cn.nukkit.Server;
-import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.inventory.Inventory;
 import cn.nukkit.item.Item;
@@ -21,10 +20,16 @@ import java.util.Random;
 
 public class SkywarsGame extends Game {
 
+    /**
+     * List of items for filling the chests
+     */
     List<Item> normalItems;
     List<Item> normalArmor;
     List<Item> rareItems;
 
+    /**
+     * List of chets already filled
+     */
     List<BlockEntityChest> chestsFilled = new ArrayList<>();
 
     boolean isEndedAlready = false;
@@ -32,6 +37,7 @@ public class SkywarsGame extends Game {
     public SkywarsGame(int gameNumber, Server server, Main plugin) {
         super(gameNumber, server, plugin);
 
+        // Lists us
         normalItems = new ArrayList<Item>();
         normalArmor = new ArrayList<Item>();
         rareItems = new ArrayList<Item>();
@@ -78,6 +84,8 @@ public class SkywarsGame extends Game {
         normalItems.add(arrows);
         normalItems.add(Item.get(Item.BOW));
 
+        normalItems.add(Item.get(Item.FISHING_ROD));
+
 
         Item eggs = Item.get(Item.EGG);
         eggs.setCount(6);
@@ -123,20 +131,18 @@ public class SkywarsGame extends Game {
     @Override
     public void startGame() {
         super.startGame();
-        NukkitCloudNetHelper.setState("RUNNING");
-        BridgeHelper.updateServiceInfo();
-        /*
-        for (Vector3 plot : this.plugin.pedestals.get(this.gameNumber)) {
-            this.server.getLevelByName(this.plugin.gameMapName).setBlock(plot.add(0, -1), Block.get(Block.AIR));
-        }*/
-
+        if (this.plugin.isProxyEnabled) {
+            NukkitCloudNetHelper.setState("RUNNING");
+            BridgeHelper.updateServiceInfo();
+        }
     }
 
     @Override
     public boolean isGameEnded() {
         if (this.hasStarted() && getPlayers().size() <= 1 && !isEndedAlready) {
             isEndedAlready = true;
-            if (getPlayers().size() == 1) {
+
+            if (getPlayers().size() == 1) { // When a player won
 
                 cbPlayer winner = this.getPlayers().get(0);
 
@@ -158,16 +164,12 @@ public class SkywarsGame extends Game {
                     this.server.getScheduler().scheduleDelayedTask(() -> {
                         ((cbPlayer) p).proxyTransfer("Lobby-1");
                     }, 60);
-                    // We kick again if there are still a proxy player
-
 
                 } else {
 
                     this.server.getScheduler().scheduleDelayedTask(() -> {
                         p.kick("End of game.");
                     }, 60);
-                    // We kick again if there are still a proxy player
-
                 }
 
 
@@ -197,30 +199,11 @@ public class SkywarsGame extends Game {
         return false;
     }
 
-
-    private int refillChests() {
-        int numberOfChests = 0;
-        Random random = new Random();
-        int numverOfBlockEntites = 0;
-        for (BlockEntity blockEntity : this.server.getLevelByName(this.plugin.gameMapName).getBlockEntities().values()) {
-            if (blockEntity instanceof BlockEntityChest) {
-                numberOfChests++;
-
-                Inventory inventory = ((BlockEntityChest) blockEntity).getInventory();
-                for (int i = 0; i > inventory.getSize(); i++) {
-                    if (random.nextDouble() > 0.8) {
-                        inventory.setItem(i, normalItems.get(random.nextInt(normalItems.size())));
-                    }
-                }
-
-            }
-        }
-
-
-        return numberOfChests;
-    }
-
-
+    /**
+     * Used to filled a chest. Called when a player opens a chest
+     *
+     * @param blockEntity : The chest to fill
+     */
     public void fillChest(BlockEntityChest blockEntity) {
         if (chestsFilled.contains(blockEntity)) {
             return;
@@ -285,24 +268,17 @@ public class SkywarsGame extends Game {
         level.setTime(6000);
         level.stopTime();
         level.setRaining(false);
-//        for(int x = 0; x < 1000; x+=16){
-//            for(int z = 0; z < 1000; z+=16){
-//                level.loadChunk(x,z,false);
-//            }
-//        }
 
-        int chestFilled = this.refillChests();
-        this.server.getLogger().info("Game " + this.gameNumber + " ready! refilled " + chestFilled + " chests!");
         if (chestsFilled != null) {
             chestsFilled.clear();
         }
 
+        // We kick again in case it failed to proxy transfer
         for (Player p : this.server.getOnlinePlayers().values()) {
             p.kick("End of game.");
-            // We kick again if there are still a proxy player
+
         }
-//
-//        chestsFilled.clear();
+
         NukkitCloudNetHelper.setState("OPEN");
         NukkitCloudNetHelper.setMaxPlayers(Capacity);
         BridgeHelper.updateServiceInfo();

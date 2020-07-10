@@ -104,7 +104,6 @@ public class Main extends PluginBase implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         event.getPlayer().setFoodEnabled(false);
-        event.setJoinMessage("");
         event.getPlayer().getSkin().setTrusted(true);
         if (isDataBaseEnabled) {
             this.getServer().getScheduler().scheduleTask(new getPlayerDataTask(event.getPlayer().getName(), address, databaseName, username, password), true);
