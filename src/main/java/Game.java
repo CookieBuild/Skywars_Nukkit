@@ -82,7 +82,10 @@ public abstract class Game {
         this.isFilling = false;
         for (cbPlayer player : players) {
             this.plugin.teleportToGame(player);
-            player.getLevel().addSound(player.getLocation(), Sound.NOTE_XYLOPHONE, 1, (float) 0.5);
+            this.server.getScheduler().scheduleDelayedTask(() -> {
+                player.getLevel().addSound(player.getLocation(), Sound.NOTE_XYLOPHONE, 1, (float) 0.5);
+            }, 10);
+
             player.sendMessage(TextFormat.GREEN + "> The game has started!");
         }
 

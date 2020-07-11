@@ -291,7 +291,7 @@ public class Main extends PluginBase implements Listener {
                 player.lastHitPlayer = null;
             } else {
                 for (Player p : this.getServer().getOnlinePlayers().values()) {
-                    p.sendMessage(TextFormat.GREEN + "> " + TextFormat.RESET + player.getDisplayName() + TextFormat.GREEN + " died!");
+                    p.sendMessage(TextFormat.GREEN + "> " + TextFormat.RESET + player.getDisplayName() + TextFormat.GREEN + " fell off!");
                 }
             }
 
