@@ -117,6 +117,10 @@ public class cbPlayer extends Player {
         }, 80);
     }
 
+    public int getCoins() {
+        return coins;
+    }
+
     public void setAuthenticated(boolean isAuthenticated) {
         this.isAuthenticatedCb = isAuthenticated;
     }

@@ -1,34 +1,28 @@
 package main.java;
 
 import cn.nukkit.Player;
-import cn.nukkit.block.BlockChest;
-import cn.nukkit.block.BlockTNT;
 import cn.nukkit.blockentity.BlockEntityChest;
+import cn.nukkit.command.Command;
+import cn.nukkit.command.CommandSender;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
-import cn.nukkit.event.block.BlockBreakEvent;
-import cn.nukkit.event.block.BlockPlaceEvent;
-import cn.nukkit.event.entity.EntityDamageByEntityEvent;
-import cn.nukkit.event.entity.EntityDamageEvent;
-import cn.nukkit.event.entity.EntityRegainHealthEvent;
 import cn.nukkit.event.inventory.InventoryOpenEvent;
-import cn.nukkit.event.level.WeatherChangeEvent;
-import cn.nukkit.event.player.*;
+import cn.nukkit.event.player.PlayerFormRespondedEvent;
+import cn.nukkit.event.player.PlayerItemHeldEvent;
 import cn.nukkit.inventory.InventoryType;
 import cn.nukkit.item.Item;
 import cn.nukkit.level.Location;
-import cn.nukkit.level.Sound;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.TextFormat;
 import main.java.CustomInterface.screens.AllServersScreen;
 import main.java.Data.dataBaseQuery;
-import main.java.Data.getPlayerDataTask;
+import main.java.Listeners.LevelEventsListener;
+import main.java.Listeners.PlayerEventsListener;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
@@ -77,6 +71,8 @@ public class Main extends PluginBase implements Listener {
         }
 
 
+        this.getServer().getPluginManager().registerEvents(new PlayerEventsListener(this, address, databaseName, username, password), this);
+        this.getServer().getPluginManager().registerEvents(new LevelEventsListener(this), this);
         this.getServer().getPluginManager().registerEvents(this, this);
 
         this.game = new SkywarsGame(new Random().nextInt(numberOfMaps), this.getServer(), this);
@@ -88,48 +84,6 @@ public class Main extends PluginBase implements Listener {
         this.getServer().getScheduler().scheduleRepeatingTask(this::sendPopups, 10);
     }
 
-    @EventHandler
-    public void onPlayerCreated(PlayerCreationEvent event) {
-        event.setPlayerClass(cbPlayer.class);
-    }
-
-
-    @EventHandler
-    public void onPlayerPreLoginEvent(PlayerPreLoginEvent event) {
-        if (this.game.state != Game.GAME_OPEN || this.game.getPlayers().size() >= this.game.Capacity) {
-            event.getPlayer().kick("A game is already running!");
-        }
-    }
-
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        event.getPlayer().setFoodEnabled(false);
-        event.getPlayer().getSkin().setTrusted(true);
-        if (isDataBaseEnabled) {
-            this.getServer().getScheduler().scheduleTask(new getPlayerDataTask(event.getPlayer().getName(), address, databaseName, username, password), true);
-        }
-
-        this.onPlayerJoinGame((cbPlayer) event.getPlayer());
-    }
-
-
-    @EventHandler
-    public void onPlayerKicked(PlayerKickEvent event) {
-        cbPlayer player = (cbPlayer) event.getPlayer();
-        if (player.isInGame) {
-            this.game.removePlayer(player);
-        }
-    }
-
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        event.setQuitMessage((String) null);
-        cbPlayer player = (cbPlayer) event.getPlayer();
-        if (player.isInGame) {
-            this.game.removePlayer(player);
-        }
-    }
 
     @EventHandler
     public void onItemHeldEvent(PlayerItemHeldEvent event) {
@@ -145,80 +99,7 @@ public class Main extends PluginBase implements Listener {
         if (event.getInventory().getType() == InventoryType.CHEST) {
             if (event.getInventory().getHolder() instanceof BlockEntityChest) {
                 this.game.fillChest((BlockEntityChest) event.getInventory().getHolder());
-                this.getServer().getLogger().info("Chests filled on the fly!");
             }
-        }
-    }
-
-    @EventHandler
-    public void onEntityDamaged(EntityDamageEvent event) {
-        if (event.getEntity() instanceof cbPlayer) {
-            cbPlayer player = (cbPlayer) event.getEntity();
-            if (!player.isInGame) {
-                event.setCancelled();
-            } else {
-                if (!this.game.hasStarted()) {
-                    event.setCancelled();
-                } else {
-
-                    if (event instanceof EntityDamageByEntityEvent) {
-                        if (((EntityDamageByEntityEvent) event).getDamager() instanceof cbPlayer) {
-                            player.lastHitPlayer = (cbPlayer) ((EntityDamageByEntityEvent) event).getDamager();
-                            if (event.getCause() == EntityDamageEvent.DamageCause.PROJECTILE) {
-                                Collection<Player> playerCollection = new ArrayList<>();
-                                playerCollection.add(player.lastHitPlayer);
-                                player.lastHitPlayer.getLevel().addSound(player.lastHitPlayer.getLocation(), Sound.RANDOM_ORB, 1, 1, playerCollection);
-                            }
-                        }
-
-                        this.getServer().getScheduler().scheduleDelayedTask(() -> {
-                            player.setNameTag(player.getDisplayName() + "\n" + (player.getHealth()) + "❤");
-                        }, 1);
-
-                    }
-                }
-
-                if (!event.isCancelled() && player.getHealth() - event.getFinalDamage() < 1f) {
-                    event.setCancelled();
-                    this.simulateDeath(player);
-                }
-            }
-        }
-    }
-
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-    }
-
-    @EventHandler
-    public void onBlockPlaced(BlockPlaceEvent event) {
-        cbPlayer player = (cbPlayer) event.getPlayer();
-        if (!player.isInGame) {
-            event.setCancelled();
-        } else {
-            if (!this.game.hasStarted()) {
-                event.setCancelled();
-            } else {
-                if (event.getBlock() instanceof BlockTNT) {
-                    this.getServer().getScheduler().scheduleDelayedTask(() -> {
-                        ((BlockTNT) event.getBlock()).prime(80, player);
-                    }, 1);
-                }
-            }
-        }
-    }
-
-    @EventHandler
-    public void onWeatherChange(WeatherChangeEvent event) {
-        event.setCancelled();
-    }
-
-    @EventHandler
-    public void onHealthRegain(EntityRegainHealthEvent event) {
-        if (this.game.hasStarted() && event.getEntity() instanceof cbPlayer) {
-            this.getServer().getScheduler().scheduleDelayedTask(() -> {
-                event.getEntity().setNameTag(((cbPlayer) event.getEntity()).getDisplayName() + "\n" + (event.getEntity().getHealth()) + "❤");
-            }, 1);
         }
     }
 
@@ -234,22 +115,19 @@ public class Main extends PluginBase implements Listener {
 
     }
 
-    @EventHandler
-    public void onBlockBreak(BlockBreakEvent event) {
-        cbPlayer player = (cbPlayer) event.getPlayer();
-        if (!player.isInGame) {
-            event.setCancelled();
-        } else {
-            if (!this.game.hasStarted()) {
-                event.setCancelled();
-            } else {
-                if (event.getBlock() instanceof BlockChest) {
-                    BlockChest blockChest = (BlockChest) event.getBlock();
-                    event.setCancelled();
-                    event.getPlayer().sendMessage("Can't break chests yet! Working on it...");
-                }
-            }
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof cbPlayer)) {
+            return false;
         }
+        switch (command.getName()) {
+            case "/coins":
+                sender.sendMessage(TextFormat.GREEN + "> You have " + TextFormat.YELLOW + (((cbPlayer) sender).getCoins()) + TextFormat.GREEN + " coins!");
+                return true;
+            default:
+                break;
+        }
+        return super.onCommand(sender, command, label, args);
     }
 
     public void sendPopups() {

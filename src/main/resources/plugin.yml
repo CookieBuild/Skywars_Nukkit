@@ -7,3 +7,15 @@ api: ["1.0.0"]
 load: POSTWORLD
 author: Guillaume351
 description: Cookie Build SkyWars - for Nukkit
+
+commands:
+  pos:
+    description: Get your coordinates
+    usage: "/coins"
+    permission: skywars.account.basic
+
+
+permissions:
+  skywars.account.basic:
+    description: "Allows basic commands"
+    default: true
