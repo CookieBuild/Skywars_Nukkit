@@ -1,5 +1,8 @@
-package main.java;
+package Skywars;
 
+import Skywars.Data.dataBaseQuery;
+import Skywars.Listeners.LevelEventsListener;
+import Skywars.Listeners.PlayerEventsListener;
 import cn.nukkit.Player;
 import cn.nukkit.blockentity.BlockEntityChest;
 import cn.nukkit.command.Command;
@@ -18,9 +21,6 @@ import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.TextFormat;
 import main.java.CustomInterface.screens.AllServersScreen;
-import main.java.Data.dataBaseQuery;
-import main.java.Listeners.LevelEventsListener;
-import main.java.Listeners.PlayerEventsListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -140,7 +140,6 @@ public class Main extends PluginBase implements Listener {
                 String text = TextFormat.RED + (game.startTimer > 0 ? " Starting in " + (game.START_DELAY - game.startTimer) + " " : " Waiting for players to join... ") + TextFormat.BLUE + playerCount;
                 player.sendPopup(text);
             } else {
-
                 String text = "" + TextFormat.YELLOW + game.getPlayers().size() + " " + TextFormat.GREEN + "players remaining";
                 player.sendPopup(text);
             }

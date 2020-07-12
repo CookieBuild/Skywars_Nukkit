@@ -1,9 +1,9 @@
-package main.java.Data;
+package Skywars.Data;
 
+import Skywars.Main;
+import Skywars.cbPlayer;
 import cn.nukkit.Server;
 import cn.nukkit.scheduler.AsyncTask;
-import main.java.Main;
-import main.java.cbPlayer;
 
 import java.sql.*;
 

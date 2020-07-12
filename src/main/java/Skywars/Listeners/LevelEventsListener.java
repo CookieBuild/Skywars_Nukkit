@@ -1,5 +1,7 @@
-package main.java.Listeners;
+package Skywars.Listeners;
 
+import Skywars.Main;
+import Skywars.cbPlayer;
 import cn.nukkit.block.BlockChest;
 import cn.nukkit.block.BlockTNT;
 import cn.nukkit.event.EventHandler;
@@ -7,8 +9,6 @@ import cn.nukkit.event.Listener;
 import cn.nukkit.event.block.BlockBreakEvent;
 import cn.nukkit.event.block.BlockPlaceEvent;
 import cn.nukkit.event.level.WeatherChangeEvent;
-import main.java.Main;
-import main.java.cbPlayer;
 
 public class LevelEventsListener implements Listener {
 

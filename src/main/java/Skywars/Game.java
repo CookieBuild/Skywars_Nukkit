@@ -1,4 +1,4 @@
-package main.java;
+package Skywars;
 
 import cn.nukkit.Server;
 import cn.nukkit.level.Sound;

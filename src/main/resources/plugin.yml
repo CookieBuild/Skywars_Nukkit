@@ -1,5 +1,5 @@
 name: SkyWars
-main: main.java.Main
+main: Skywars.Main
 
 version: "1.0.0"
 api: ["1.0.0"]

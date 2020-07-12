@@ -1,4 +1,4 @@
-package main.java.Data;
+package Skywars.Data;
 
 import cn.nukkit.scheduler.AsyncTask;
 

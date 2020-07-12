@@ -1,4 +1,4 @@
-package main.java;
+package Skywars;
 
 import cn.nukkit.Player;
 import cn.nukkit.Server;

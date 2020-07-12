@@ -1,5 +1,9 @@
-package main.java.Listeners;
+package Skywars.Listeners;
 
+import Skywars.Data.getPlayerDataTask;
+import Skywars.Game;
+import Skywars.Main;
+import Skywars.cbPlayer;
 import cn.nukkit.Player;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
@@ -8,10 +12,6 @@ import cn.nukkit.event.entity.EntityDamageEvent;
 import cn.nukkit.event.entity.EntityRegainHealthEvent;
 import cn.nukkit.event.player.*;
 import cn.nukkit.level.Sound;
-import main.java.Data.getPlayerDataTask;
-import main.java.Game;
-import main.java.Main;
-import main.java.cbPlayer;
 
 import java.util.ArrayList;
 import java.util.Collection;

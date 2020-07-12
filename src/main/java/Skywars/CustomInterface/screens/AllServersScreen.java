@@ -1,10 +1,10 @@
 package main.java.CustomInterface.screens;
 
+import Skywars.cbPlayer;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.player.PlayerFormRespondedEvent;
 import cn.nukkit.form.window.FormWindowSimple;
 import main.java.CustomInterface.elements.ServerButton;
-import main.java.cbPlayer;
 
 public class AllServersScreen extends FormWindowSimple {
     public AllServersScreen(String title, String content) {
