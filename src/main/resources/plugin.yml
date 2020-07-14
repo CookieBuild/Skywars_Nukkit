@@ -9,7 +9,7 @@ author: Guillaume351
 description: Cookie Build SkyWars - for Nukkit
 
 commands:
-  pos:
+  coins:
     description: Get your coordinates
     usage: "/coins"
     permission: skywars.account.basic

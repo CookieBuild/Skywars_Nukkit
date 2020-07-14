@@ -278,10 +278,11 @@ public class SkywarsGame extends Game {
             p.kick("End of game.");
 
         }
+        if (this.plugin.isProxyEnabled) {
+            NukkitCloudNetHelper.setState("OPEN");
+            NukkitCloudNetHelper.setMaxPlayers(Capacity);
+            BridgeHelper.updateServiceInfo();
 
-        NukkitCloudNetHelper.setState("OPEN");
-        NukkitCloudNetHelper.setMaxPlayers(Capacity);
-        BridgeHelper.updateServiceInfo();
-
+        }
     }
 }
