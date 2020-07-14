@@ -45,6 +45,7 @@ public class PlayerEventsListener implements Listener {
 
     @EventHandler
     public void onPlayerPreLoginEvent(PlayerPreLoginEvent event) {
+        event.getPlayer().getSkin().setTrusted(true);
         if (this.plugin.game.state != Game.GAME_OPEN || this.plugin.game.getPlayers().size() >= this.plugin.game.Capacity) {
             event.getPlayer().kick("A game is already running!");
         }
@@ -53,7 +54,10 @@ public class PlayerEventsListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         event.getPlayer().setFoodEnabled(false);
-        event.getPlayer().getSkin().setTrusted(true);
+        if (this.plugin.game.state != Game.GAME_OPEN || this.plugin.game.getPlayers().size() >= this.plugin.game.Capacity) {
+            event.getPlayer().kick("A game is already running!");
+        }
+
         if (this.plugin.isDataBaseEnabled) {
             this.plugin.getServer().getScheduler().scheduleTask(new getPlayerDataTask(event.getPlayer().getName(), this.address, this.databaseName, this.username, this.password), true);
         }
