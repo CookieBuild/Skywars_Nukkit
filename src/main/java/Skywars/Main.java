@@ -212,7 +212,7 @@ public class Main extends PluginBase implements Listener {
 
     public void teleportToGame(cbPlayer player) {
         player.teleport(Location.fromObject(this.pedestals.get(this.game.gameNumber).get(this.game.getPlayers().indexOf(player)), this.getServer().getLevelByName(gameMapName)));
-        player.setFoodEnabled(false);
+        player.setFoodEnabled(true);
         player.removeAllEffects();
         player.setHealth(20);
         player.setNameTag(player.getDisplayName() + "\n" + (player.getHealth() + "❤"));
