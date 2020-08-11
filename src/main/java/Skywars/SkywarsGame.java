@@ -178,9 +178,7 @@ public class SkywarsGame extends Game {
 
             // Game has ended. Everyone is gone, time to reset
 
-            this.server.getScheduler().scheduleDelayedTask(() -> {
-                this.resetGame();
-            }, 80);
+            this.server.getScheduler().scheduleDelayedTask(this::resetGame, 80);
             return true;
         } else {
             if (this.getPlayers().size() == 2) {

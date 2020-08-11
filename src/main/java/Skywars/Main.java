@@ -20,6 +20,7 @@ import cn.nukkit.math.Vector3;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.TextFormat;
+import de.dytanic.cloudnet.ext.bridge.BridgeHelper;
 import main.java.CustomInterface.screens.AllServersScreen;
 
 import java.util.ArrayList;
@@ -84,6 +85,12 @@ public class Main extends PluginBase implements Listener {
         this.getServer().getScheduler().scheduleRepeatingTask(() -> {
             this.game.tick();
         }, 20);
+
+
+        if (this.isProxyEnabled) {
+            this.getServer().getScheduler().scheduleRepeatingTask(BridgeHelper::updateServiceInfo, 20 * 60);
+        }
+
 
         this.getServer().getScheduler().scheduleRepeatingTask(this::sendPopups, 10);
     }
