@@ -8,6 +8,7 @@ import cn.nukkit.utils.TextFormat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.net.InetSocketAddress;
 
 
 /**
@@ -28,8 +29,8 @@ public class cbPlayer extends Player {
     //public Party party, pendingInvite;
     public PlayerData storedPlayerData;
 
-    public cbPlayer(SourceInterface interfaz, Long clientID, String ip, int port) {
-        super(interfaz, clientID, ip, port);
+    public cbPlayer(SourceInterface interfaz, Long clientID, InetSocketAddress socketAddress) {
+        super(interfaz, clientID, socketAddress);
     }
 
     /**
