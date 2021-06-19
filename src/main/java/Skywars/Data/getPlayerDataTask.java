@@ -36,7 +36,7 @@ public class getPlayerDataTask extends AsyncTask {
             // Setup the connection with the DBConnection connect = (Connection) DriverManager
             Connection connect = (Connection) DriverManager
                     .getConnection("jdbc:mysql://" + address + "/" + databaseName + "?"
-                            + "user=" + username + "&password=" + password + "&useSSL=false");
+                            + "user=" + username + "&password=" + password + "&useSSL=false&allowPublicKeyRetrieval=true");
 
             PreparedStatement preparedStatement3 = (PreparedStatement) connect
                     .prepareStatement("select * from data where playerName = ?");

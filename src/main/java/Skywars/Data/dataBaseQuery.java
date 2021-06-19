@@ -33,7 +33,7 @@ public class dataBaseQuery extends AsyncTask {
         try {
             Connection connect = (Connection) DriverManager
                     .getConnection("jdbc:mysql://" + address + "/" + databaseName + "?"
-                            + "user=" + username + "&password=" + password + "&useSSL=false");
+                            + "user=" + username + "&password=" + password + "&useSSL=false&allowPublicKeyRetrieval=true");
 
 
             PreparedStatement preparedStatement = (PreparedStatement) connect.prepareStatement(this.query);
