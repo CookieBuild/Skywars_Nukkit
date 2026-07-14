@@ -1,21 +1,22 @@
 name: SkyWars
-main: Skywars.Main
-
-version: "1.0.0"
-api: ["1.0.0"]
-
+version: '${version}'
+main: com.cookiebuild.skywars.SkyWars
+api-version: '26.1.2'
 load: POSTWORLD
-author: Guillaume351
-description: Cookie Build SkyWars - for Nukkit
+depend: [CookieDough]
 
 commands:
-  coins:
-    description: Get your coordinates
-    usage: "/coins"
-    permission: skywars.account.basic
-
+  skywars:
+    description: Join a SkyWars match
+    usage: /skywars play
+    aliases: [sw]
+    permission: skywars.play
+  swkit:
+    description: Select or unlock a balanced SkyWars kit
+    usage: /swkit [select|buy] [scout|armorer|builder|healer]
+    permission: skywars.play
 
 permissions:
-  skywars.account.basic:
-    description: "Allows basic commands"
+  skywars.play:
+    description: Join Cookie Build SkyWars
     default: true
