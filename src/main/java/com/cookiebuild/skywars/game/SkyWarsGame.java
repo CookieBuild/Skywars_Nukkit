@@ -324,6 +324,14 @@ public final class SkyWarsGame extends Game {
             placements.put(winnerId, 1);
             survivalSeconds.put(winnerId, runningSeconds);
         }
+        // A timeout can end while several players are still alive. Record a
+        // deterministic runner-up placement instead of leaving those players at 0.
+        for (UUID survivorId : alive) {
+            if (!survivorId.equals(winnerId)) {
+                placements.putIfAbsent(survivorId, winnerId == null ? 1 : 2);
+                survivalSeconds.putIfAbsent(survivorId, runningSeconds);
+            }
+        }
         for (Map.Entry<UUID, CookiePlayer> entry : participantPlayers.entrySet()) {
             Player player = entry.getValue().getPlayer();
             if (!player.isOnline()) {

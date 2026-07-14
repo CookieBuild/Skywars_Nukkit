@@ -226,7 +226,7 @@ public final class MapManager {
         Files.deleteIfExists(directory.resolve("uid.dat"));
     }
 
-    private static void validateExtractedWorld(Path directory) throws IOException {
+    static void validateExtractedWorld(Path directory) throws IOException {
         if (!Files.isRegularFile(directory.resolve("level.dat"))) {
             throw new IOException("Map archive must contain level.dat at its root (nested world folders are unsupported)");
         }
