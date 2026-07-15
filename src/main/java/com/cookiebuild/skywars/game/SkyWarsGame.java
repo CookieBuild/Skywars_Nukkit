@@ -119,6 +119,11 @@ public final class SkyWarsGame extends Game {
         try {
             teleportToGame(cookiePlayer);
             player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.choose"), NamedTextColor.YELLOW));
+            player.showTitle(Title.title(
+                    Component.text(SkyWars.message(player, "skywars.waiting.title"), NamedTextColor.GOLD,
+                            TextDecoration.BOLD),
+                    Component.text(SkyWars.message(player, "skywars.waiting.subtitle"), NamedTextColor.YELLOW),
+                    Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(3), Duration.ofMillis(500))));
             return true;
         } catch (RuntimeException error) {
             participantIds.remove(playerId);
@@ -145,29 +150,32 @@ public final class SkyWarsGame extends Game {
     @Override
     protected void teleportToGame(CookiePlayer cookiePlayer) {
         Player player = cookiePlayer.getPlayer();
-        Integer spawn = spawnAssignments.get(player.getUniqueId());
-        if (spawn == null) {
-            throw new IllegalStateException("Player has no SkyWars island assignment");
-        }
         cookiePlayer.resetPlayer();
-        player.teleport(map.template().getSpawn(map.world(), spawn));
         player.setFallDistance(0);
         if (getState() == GameState.RUNNING) {
+            Integer spawn = spawnAssignments.get(player.getUniqueId());
+            if (spawn == null) {
+                throw new IllegalStateException("Player has no SkyWars island assignment");
+            }
+            player.teleport(map.template().getSpawn(map.world(), spawn));
             player.setGameMode(GameMode.SURVIVAL);
             SkyWarsKit kit = SkyWars.getInstance().getKitManager().equip(player);
             player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.equipped",
                     kit.displayName(), SkyWars.message(player, "skywars.kit." + kit.key() + ".description")), NamedTextColor.AQUA));
         } else {
             player.setGameMode(GameMode.ADVENTURE);
-            player.getInventory().setItem(8, kitSelector());
+            player.teleport(map.template().getWaitingSpawn(map.world()));
+            player.getInventory().setItem(0, kitSelector());
         }
     }
 
     private ItemStack kitSelector() {
-        ItemStack selector = new ItemStack(Material.CHEST);
+        ItemStack selector = new ItemStack(Material.COOKIE);
         ItemMeta meta = selector.getItemMeta();
-        meta.displayName(Component.text("SkyWars Kits", NamedTextColor.GOLD));
-        meta.lore(List.of(Component.text("Right-click or use /swkit", NamedTextColor.GRAY)));
+        meta.displayName(Component.text("Kit Selector", NamedTextColor.GOLD));
+        meta.lore(List.of(
+                Component.text("Right-click to select your kit", NamedTextColor.GRAY),
+                Component.text("Java inventory or Bedrock form", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(SkyWars.getInstance().getKitSelectorKey(), PersistentDataType.BYTE, (byte) 1);
         selector.setItemMeta(meta);
         return selector;
@@ -242,7 +250,19 @@ public final class SkyWarsGame extends Game {
         for (CookiePlayer cookiePlayer : getPlayers()) {
             Player player = cookiePlayer.getPlayer();
             String state = SkyWars.message(player, stateKey);
-            player.sendActionBar(Component.text(state + " · " + alive.size() + " alive", NamedTextColor.YELLOW));
+            if (getState() == GameState.OPEN) {
+                WaitingStatus waiting = WaitingStatus.from(getPlayers().size(), getCapacity(), getMinimumPlayers(),
+                        getStartTimer(), inQuickStart ? QUICK_START_DELAY_SECONDS : START_DELAY_SECONDS);
+                String status = waiting.isCountingDown()
+                        ? SkyWars.message(player, "skywars.waiting.starting", waiting.secondsRemaining(),
+                                waiting.players(), waiting.capacity())
+                        : SkyWars.message(player, "skywars.waiting.players", waiting.players(), waiting.capacity(),
+                                waiting.morePlayersNeeded());
+                player.sendActionBar(Component.text(status, waiting.isCountingDown()
+                        ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            } else {
+                player.sendActionBar(Component.text(state + " · " + alive.size() + " alive", NamedTextColor.YELLOW));
+            }
             SkyWarsStats.Snapshot snapshot = stats.snapshot(player.getUniqueId());
             scoreboard.update(player, List.of(
                     "§6Map: §f" + map.template().getName(),
@@ -263,6 +283,9 @@ public final class SkyWarsGame extends Game {
     }
 
     public Location getPregameAnchor(Player player) {
+        if (getState() == GameState.OPEN) {
+            return map.template().getWaitingSpawn(map.world());
+        }
         Integer spawn = spawnAssignments.get(player.getUniqueId());
         return spawn == null ? null : map.template().getSpawn(map.world(), spawn);
     }

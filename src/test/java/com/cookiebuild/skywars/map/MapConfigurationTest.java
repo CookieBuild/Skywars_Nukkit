@@ -47,6 +47,16 @@ class MapConfigurationTest {
         assertTrue(section(config, "legacy-2").contains("kill-y: 20.0"));
     }
 
+    @Test
+    void everyArenaDeclaresAWaitingAreaSeparateFromIslandSpawns() throws IOException {
+        String config = config();
+        for (String map : List.of("legacy-0", "legacy-1", "legacy-2", "legacy-4")) {
+            String waiting = value(config, map, "waiting-spawn");
+            assertTrue(waiting.startsWith("[") && waiting.endsWith("]"));
+            assertTrue(spawns(section(config, map)).stream().noneMatch(waiting::contains));
+        }
+    }
+
     private static String config() throws IOException {
         try (InputStream input = MapConfigurationTest.class.getResourceAsStream("/config.yml")) {
             if (input == null) {

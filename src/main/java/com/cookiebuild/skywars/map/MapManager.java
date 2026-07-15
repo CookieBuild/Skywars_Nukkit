@@ -14,6 +14,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRules;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.configuration.ConfigurationSection;
@@ -239,19 +240,39 @@ public final class MapManager {
 
     private static void validateSpawnTerrain(World world, MapTemplate template) throws IOException {
         for (org.bukkit.Location spawn : template.getSpawns(world)) {
-            boolean terrainFound = false;
-            for (int offset = 1; offset <= 5; offset++) {
-                if (world.getBlockAt(spawn.getBlockX(), spawn.getBlockY() - offset, spawn.getBlockZ())
-                        .getType().isSolid()) {
-                    terrainFound = true;
-                    break;
-                }
-            }
-            if (!terrainFound) {
-                throw new IOException("No solid island terrain below configured spawn "
-                        + spawn.getBlockX() + "," + spawn.getBlockY() + "," + spawn.getBlockZ());
-            }
+            requireSolidTerrain(world, spawn, "island spawn");
         }
+        ensureSafeWaitingArea(world, template);
+    }
+
+    private static void ensureSafeWaitingArea(World world, MapTemplate template) throws IOException {
+        org.bukkit.Location waiting = template.getWaitingSpawn(world);
+        if (hasSolidTerrain(world, waiting)) return;
+
+        int floorY = waiting.getBlockY() - 1;
+        for (TemporaryWaitingPlatform.BlockPosition block
+                : TemporaryWaitingPlatform.blocks(waiting.getBlockX(), floorY, waiting.getBlockZ())) {
+            world.getBlockAt(block.x(), block.y(), block.z()).setType(
+                    Material.LIGHT_BLUE_STAINED_GLASS, false);
+        }
+        requireSolidTerrain(world, waiting, "generated temporary waiting spawn");
+        SkyWars.getInstance().getLogger().warning("Generated a temporary waiting platform for recovered map "
+                + template.getName() + " because its legacy lobby platform is missing");
+    }
+
+    private static void requireSolidTerrain(World world, org.bukkit.Location location, String label)
+            throws IOException {
+        if (hasSolidTerrain(world, location)) return;
+        throw new IOException("No solid terrain below configured " + label + " "
+                + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+    }
+
+    private static boolean hasSolidTerrain(World world, org.bukkit.Location location) {
+        for (int offset = 1; offset <= 5; offset++) {
+            if (world.getBlockAt(location.getBlockX(), location.getBlockY() - offset, location.getBlockZ())
+                    .getType().isSolid()) return true;
+        }
+        return false;
     }
 
     private static final class VoidChunkGenerator extends ChunkGenerator {

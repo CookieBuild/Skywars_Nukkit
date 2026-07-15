@@ -14,17 +14,18 @@ import com.cookiebuild.cookiedough.player.CookiePlayer;
 import com.cookiebuild.cookiedough.player.PlayerManager;
 import com.cookiebuild.skywars.game.SkyWarsGame;
 import com.cookiebuild.skywars.SkyWars;
+import com.cookiebuild.skywars.ui.SkyWarsKitSelectionUI;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class KitCommand implements CommandExecutor, TabCompleter {
     private final KitManager kitManager;
+    private final SkyWarsKitSelectionUI kitSelectionUI;
 
-    public KitCommand(KitManager kitManager) {
+    public KitCommand(KitManager kitManager, SkyWarsKitSelectionUI kitSelectionUI) {
         this.kitManager = kitManager;
+        this.kitSelectionUI = kitSelectionUI;
     }
 
     @Override
@@ -73,18 +74,7 @@ public final class KitCommand implements CommandExecutor, TabCompleter {
     }
 
     public void showCatalog(Player player) {
-        player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.catalog"), NamedTextColor.GOLD));
-        for (SkyWarsKit kit : SkyWarsKit.values()) {
-            boolean unlocked = kitManager.isUnlocked(player.getUniqueId(), kit);
-            String action = unlocked ? "select" : "buy";
-            String description = SkyWars.message(player, "skywars.kit." + kit.key() + ".description");
-            Component line = Component.text("[" + kit.displayName() + "] ", unlocked ? NamedTextColor.GREEN : NamedTextColor.YELLOW)
-                    .append(Component.text(description + (unlocked ? "" : " · " + kit.price() + " coins"), NamedTextColor.GRAY))
-                    .clickEvent(ClickEvent.runCommand("/swkit " + action + " " + kit.key()))
-                    .hoverEvent(HoverEvent.showText(Component.text((unlocked ? "Select " : "Buy ") + kit.displayName())));
-            player.sendMessage(line);
-        }
-        player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.bedrock"), NamedTextColor.AQUA));
+        kitSelectionUI.open(player);
     }
 
     @Override

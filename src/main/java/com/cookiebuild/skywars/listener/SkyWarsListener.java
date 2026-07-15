@@ -142,7 +142,7 @@ public final class SkyWarsListener implements Listener {
         if (game.getState() == GameState.OPEN) {
             Location anchor = game.getPregameAnchor(player);
             if (anchor != null && (event.getTo().getWorld() != anchor.getWorld()
-                    || event.getTo().distanceSquared(anchor) > 2.25)) {
+                    || event.getTo().distanceSquared(anchor) > 16.0)) {
                 event.setTo(anchor);
             }
             return;
@@ -210,7 +210,7 @@ public final class SkyWarsListener implements Listener {
             return;
         }
         event.setCancelled(true);
-        SkyWars.getInstance().getKitCommand().showCatalog(event.getPlayer());
+        SkyWars.getInstance().getKitSelectionUI().open(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

@@ -17,6 +17,7 @@ import com.cookiebuild.skywars.kit.KitCommand;
 import com.cookiebuild.skywars.kit.KitManager;
 import com.cookiebuild.skywars.listener.SkyWarsListener;
 import com.cookiebuild.skywars.map.MapManager;
+import com.cookiebuild.skywars.ui.SkyWarsKitSelectionUI;
 import com.cookiebuild.cookiedough.utils.LocaleManager;
 
 import net.kyori.adventure.text.Component;
@@ -26,6 +27,7 @@ public final class SkyWars extends JavaPlugin {
     private static SkyWars instance;
     private KitManager kitManager;
     private KitCommand kitCommand;
+    private SkyWarsKitSelectionUI kitSelectionUI;
     private SkyWarsListener gameListener;
     private NamespacedKey kitSelectorKey;
 
@@ -62,9 +64,11 @@ public final class SkyWars extends JavaPlugin {
         }
 
         kitManager = new KitManager(CookieDough.createMinigameProgressionService());
-        kitCommand = new KitCommand(kitManager);
+        kitSelectionUI = new SkyWarsKitSelectionUI(kitManager);
+        kitCommand = new KitCommand(kitManager, kitSelectionUI);
         gameListener = new SkyWarsListener();
         getServer().getPluginManager().registerEvents(gameListener, this);
+        getServer().getPluginManager().registerEvents(kitSelectionUI, this);
 
         PluginCommand skywars = Objects.requireNonNull(getCommand("skywars"));
         skywars.setExecutor((sender, command, label, args) -> {
@@ -122,6 +126,10 @@ public final class SkyWars extends JavaPlugin {
 
     public KitCommand getKitCommand() {
         return kitCommand;
+    }
+
+    public SkyWarsKitSelectionUI getKitSelectionUI() {
+        return kitSelectionUI;
     }
 
     public NamespacedKey getKitSelectorKey() {
