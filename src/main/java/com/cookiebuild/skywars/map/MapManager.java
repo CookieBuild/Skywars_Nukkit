@@ -19,6 +19,7 @@ import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.generator.ChunkGenerator;
+import net.kyori.adventure.util.TriState;
 
 import com.cookiebuild.cookiedough.utils.FileUtils;
 import com.cookiebuild.cookiedough.utils.ZipUtils;
@@ -130,6 +131,9 @@ public final class MapManager {
             World world = WorldCreator.ofKey(worldKey)
                     .environment(World.Environment.NORMAL)
                     .generateStructures(false)
+                    // Cage chunks are loaded explicitly during admission. Avoid Paper's
+                    // synchronous generic spawn preparation when creating the next arena.
+                    .keepSpawnLoaded(TriState.FALSE)
                     .generator(new VoidChunkGenerator())
                     .createWorld();
             if (world == null) {
