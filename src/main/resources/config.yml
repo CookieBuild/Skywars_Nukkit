@@ -1,5 +1,7 @@
-# World templates live in skywars_maps/<archive>.zip. Coordinates were migrated
-# from CookieBuild/Skywars_Nukkit. The original repository did not contain maps.
+config-version: 2
+
+# Converted world templates live in skywars_maps/<archive>.zip. Coordinates are
+# preserved from CookieBuild/Skywars_Nukkit and checked against the recovered maps.
 maps:
   legacy-0:
     archive: legacy-0.zip
@@ -27,7 +29,7 @@ maps:
     kill-y: 30.0
     middle-radius: 18.0
     spawns:
-      - [-1590.5, 48.5, -870.5, -1.0]
+      - [-1589.5, 48.5, -870.5, -1.0]
       - [-1613.5, 48.5, -843.5, -29.0]
       - [-1634.5, 48.5, -822.5, -62.0]
       - [-1661.5, 48.5, -797.5, -90.0]
@@ -43,7 +45,7 @@ maps:
   legacy-2:
     archive: legacy-2.zip
     waiting-spawn: [-475.5, 66.0, 367.5, 0.0]
-    spectator-spawn: [-475.5, 58.0, 367.5, 0.0]
+    spectator-spawn: [-475.5, 60.0, 367.5, 0.0]
     kill-y: 20.0
     middle-radius: 18.0
     spawns:

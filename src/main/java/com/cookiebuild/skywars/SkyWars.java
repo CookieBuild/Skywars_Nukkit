@@ -1,6 +1,7 @@
 package com.cookiebuild.skywars;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import org.bukkit.NamespacedKey;
@@ -49,6 +50,7 @@ public final class SkyWars extends JavaPlugin {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
+        migrateConfig();
         LocaleManager.registerBundle("skywars_messages");
         kitSelectorKey = new NamespacedKey(this, "kit_selector");
         try {
@@ -80,6 +82,22 @@ public final class SkyWars extends JavaPlugin {
         if (!registerNewGame()) {
             getLogger().warning("Plugin enabled without an open game; NPC/Quick Play will not offer an empty arena.");
         }
+    }
+
+    private void migrateConfig() {
+        int version = getConfig().getInt("config-version", 0);
+        if (version >= 2) return;
+        List<?> configuredSpawns = getConfig().getList("maps.legacy-1.spawns");
+        if (configuredSpawns == null || configuredSpawns.isEmpty()) {
+            throw new IllegalStateException("Cannot migrate missing legacy-1 spawns");
+        }
+        List<Object> migratedSpawns = new ArrayList<>(configuredSpawns);
+        migratedSpawns.set(0, List.of(-1589.5, 48.5, -870.5, -1.0));
+        getConfig().set("maps.legacy-1.spawns", migratedSpawns);
+        getConfig().set("maps.legacy-2.spectator-spawn", List.of(-475.5, 60.0, 367.5, 0.0));
+        getConfig().set("config-version", 2);
+        saveConfig();
+        getLogger().info("Migrated recovered SkyWars coordinates to config version 2");
     }
 
     @Override

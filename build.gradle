@@ -48,3 +48,18 @@ processResources {
         expand props
     }
 }
+
+def mapInstallDirectory = providers.gradleProperty('cookiebuildSkyWarsMapInstallDir')
+        .map { rootProject.file(it) }
+        .orElse(provider {
+            new File(rootProject.projectDir.parentFile, 'Paper26_Test_Server/skywars_maps')
+        })
+
+tasks.register('installMaps', Copy) {
+    group = 'distribution'
+    description = 'Installs the versioned SkyWars map archives into a Paper server.'
+    from(layout.projectDirectory.dir('maps')) {
+        include '*.zip'
+    }
+    into(mapInstallDirectory)
+}
