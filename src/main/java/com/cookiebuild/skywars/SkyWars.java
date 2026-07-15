@@ -3,8 +3,10 @@ package com.cookiebuild.skywars;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.time.Duration;
 
 import org.bukkit.NamespacedKey;
+import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -12,6 +14,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import com.cookiebuild.cookiedough.CookieDough;
 import com.cookiebuild.cookiedough.game.Game;
 import com.cookiebuild.cookiedough.game.GameManager;
+import com.cookiebuild.cookiedough.game.GameState;
+import com.cookiebuild.cookiedough.game.StandbyGamePool;
+import com.cookiebuild.cookiedough.game.StandbyRefillGate;
 import com.cookiebuild.skywars.game.SkyWarsGame;
 import com.cookiebuild.skywars.kit.KitCommand;
 import com.cookiebuild.skywars.kit.KitManager;
@@ -24,12 +29,20 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class SkyWars extends JavaPlugin {
+    private static final int STANDBY_GAME_TARGET = 3;
+    private static final long STANDBY_REFILL_RETRY_TICKS = 20L * 5L;
     private static SkyWars instance;
     private KitManager kitManager;
     private KitCommand kitCommand;
     private SkyWarsKitSelectionUI kitSelectionUI;
     private SkyWarsListener gameListener;
     private NamespacedKey kitSelectorKey;
+    private final StandbyGamePool<SkyWarsGame> standbyGames =
+            new StandbyGamePool<>(STANDBY_GAME_TARGET);
+    private final StandbyRefillGate standbyRefillGate =
+            new StandbyRefillGate(Duration.ofSeconds(30));
+    private boolean standbyRefillScheduled;
+    private boolean shuttingDown;
 
     public static SkyWars getInstance() {
         return instance;
@@ -46,6 +59,89 @@ public final class SkyWars extends JavaPlugin {
                     + error.getMessage());
             return false;
         }
+    }
+
+    /** Promotes an already loaded world without doing I/O on the queue tick. */
+    public static void activateNextGame() {
+        if (instance == null || instance.shuttingDown) {
+            return;
+        }
+        SkyWarsGame game = instance.standbyGames.poll();
+        if (game == null) {
+            instance.getLogger().warning("No preloaded SkyWars standby is available; "
+                    + "the next arena will be prepared once gameplay is idle");
+            requestStandbyRefill();
+            return;
+        }
+        GameManager.addGame(game);
+        instance.getLogger().info("Activated preloaded SkyWars game " + game.getGameId()
+                + " (standby remaining=" + instance.standbyGames.size() + ")");
+        requestStandbyRefill();
+    }
+
+    public static void requestStandbyRefill() {
+        if (instance == null || instance.shuttingDown || instance.standbyRefillScheduled
+                || !instance.standbyGames.needsRefill()) {
+            return;
+        }
+        instance.standbyRefillScheduled = true;
+        instance.getServer().getScheduler().runTaskLater(instance, () -> {
+            if (instance == null || instance.shuttingDown) {
+                return;
+            }
+            instance.standbyRefillScheduled = false;
+            if (!instance.isSafeToRefill()) {
+                requestStandbyRefill();
+                return;
+            }
+            instance.preloadStandbyGames();
+            instance.activatePreparedGameIfMissing();
+            if (instance.standbyGames.needsRefill()) {
+                requestStandbyRefill();
+            }
+        }, STANDBY_REFILL_RETRY_TICKS);
+    }
+
+    private boolean isSafeToRefill() {
+        // WorldCreator is synchronous and may take several seconds even when no
+        // match is running. Do not impose that pause on lobby users either, and
+        // require a sustained empty interval so reconnects cannot race a refill.
+        boolean activeGameplay = GameManager.getGames().stream().anyMatch(game -> !game.getPlayers().isEmpty()
+                || game.getState() == GameState.STARTING
+                || game.getState() == GameState.RUNNING);
+        return standbyRefillGate.canRefill(!Bukkit.getOnlinePlayers().isEmpty(), activeGameplay);
+    }
+
+    private void preloadStandbyGames() {
+        while (!shuttingDown && standbyGames.needsRefill()) {
+            long startedAt = System.nanoTime();
+            try {
+                SkyWarsGame game = new SkyWarsGame();
+                if (!standbyGames.offer(game)) {
+                    game.shutdown();
+                    break;
+                }
+                getLogger().info("Preloaded SkyWars standby " + game.getGameId()
+                        + " (" + standbyGames.size() + "/" + standbyGames.targetSize()
+                        + ", load_ms=" + elapsedMillis(startedAt) + ")");
+            } catch (RuntimeException error) {
+                getLogger().warning("Could not preload SkyWars standby: " + error.getMessage());
+                break;
+            }
+        }
+    }
+
+    private void activatePreparedGameIfMissing() {
+        boolean hasOpenGame = GameManager.getGames().stream()
+                .filter(SkyWarsGame.class::isInstance)
+                .anyMatch(game -> game.getState() == GameState.OPEN);
+        if (!hasOpenGame) {
+            activateNextGame();
+        }
+    }
+
+    private static long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     @Override
@@ -85,6 +181,10 @@ public final class SkyWars extends JavaPlugin {
 
         if (!registerNewGame()) {
             getLogger().warning("Plugin enabled without an open game; NPC/Quick Play will not offer an empty arena.");
+        } else {
+            // World creation is intentionally completed before Paper reports the
+            // server ready. Countdown ticks only promote these prepared games.
+            preloadStandbyGames();
         }
     }
 
@@ -106,6 +206,8 @@ public final class SkyWars extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        shuttingDown = true;
+        standbyGames.drain();
         for (Game game : new ArrayList<>(GameManager.getGames())) {
             if (game instanceof SkyWarsGame skyWarsGame) {
                 skyWarsGame.shutdown();

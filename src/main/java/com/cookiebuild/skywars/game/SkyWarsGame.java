@@ -90,7 +90,9 @@ public final class SkyWarsGame extends Game {
 
     @Override
     public void registerANewGame() {
-        Bukkit.getScheduler().runTask(SkyWars.getInstance(), SkyWars::registerNewGame);
+        // This must stay a constant-time promotion. Constructing a SkyWarsGame
+        // here synchronously loads a world and used to freeze the queue for 3-4s.
+        SkyWars.activateNextGame();
     }
 
     @Override
@@ -561,5 +563,6 @@ public final class SkyWarsGame extends Game {
         stats.clear();
         scoreboard.clear();
         GameManager.removeGame(this);
+        SkyWars.requestStandbyRefill();
     }
 }

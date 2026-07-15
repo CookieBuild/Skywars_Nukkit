@@ -20,6 +20,7 @@ import org.bukkit.WorldCreator;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.generator.ChunkGenerator;
 import net.kyori.adventure.util.TriState;
+import io.papermc.paper.math.Position;
 
 import com.cookiebuild.cookiedough.utils.FileUtils;
 import com.cookiebuild.cookiedough.utils.ZipUtils;
@@ -128,9 +129,16 @@ public final class MapManager {
             ZipUtils.unzip(archive, destination);
             removeTransientWorldFiles(destination.toPath());
             validateExtractedWorld(destination.toPath());
+            org.bukkit.Location forcedSpawn = template.getWaitingSpawn(null);
             World world = WorldCreator.ofKey(worldKey)
                     .environment(World.Environment.NORMAL)
                     .generateStructures(false)
+                    // Recovered level.dat files do not consistently contain a
+                    // usable SpawnX/Y/Z. Without an explicit position Paper
+                    // scans generated chunks for a spawn before every load.
+                    .forcedSpawnPosition(Position.block(
+                            forcedSpawn.getBlockX(), forcedSpawn.getBlockY(), forcedSpawn.getBlockZ()),
+                            forcedSpawn.getYaw(), forcedSpawn.getPitch())
                     // Cage chunks are loaded explicitly during admission. Avoid Paper's
                     // synchronous generic spawn preparation when creating the next arena.
                     .keepSpawnLoaded(TriState.FALSE)
