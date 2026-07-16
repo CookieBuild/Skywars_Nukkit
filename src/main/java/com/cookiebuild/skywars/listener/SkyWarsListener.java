@@ -198,7 +198,7 @@ public final class SkyWarsListener implements Listener {
         game.fillChest(inventory, location, player);
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onKitSelector(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND || event.getItem() == null || !event.getItem().hasItemMeta()
                 || !event.getItem().getItemMeta().getPersistentDataContainer().has(
