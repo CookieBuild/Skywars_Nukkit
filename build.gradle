@@ -15,6 +15,15 @@ repositories {
         name = 'opencollab-repo'
         url = uri('https://repo.opencollab.dev/main/')
     }
+    ivy {
+        name = 'floodgatePinnedSnapshot'
+        url = uri('https://repo.opencollab.dev/main/')
+        patternLayout {
+            artifact 'org/geysermc/floodgate/api/2.2.5-SNAPSHOT/api-[revision].[ext]'
+        }
+        metadataSources { artifact() }
+        content { includeModule('org.geysermc.floodgate', 'api') }
+    }
 }
 
 dependencies {
@@ -22,7 +31,10 @@ dependencies {
     compileOnly 'jakarta.persistence:jakarta.persistence-api:3.2.0'
     compileOnly 'io.papermc.paper:paper-api:26.1.2.build.74-stable'
     compileOnly 'org.geysermc.cumulus:cumulus:1.1.2'
-    compileOnly 'org.geysermc.floodgate:api:2.2.5-SNAPSHOT'
+    // Immutable timestamped artifact from the upstream 2.2.5 snapshot repository.
+    compileOnly('org.geysermc.floodgate:api:2.2.5-20260809.110940-20') {
+        transitive = false
+    }
     testImplementation 'io.papermc.paper:paper-api:26.1.2.build.74-stable'
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
