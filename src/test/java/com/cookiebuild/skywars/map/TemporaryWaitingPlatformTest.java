@@ -19,4 +19,15 @@ class TemporaryWaitingPlatformTest {
         assertTrue(blocks.contains(new TemporaryWaitingPlatform.BlockPosition(-481, 65, 362)));
         assertTrue(blocks.contains(new TemporaryWaitingPlatform.BlockPosition(-471, 65, 372)));
     }
+
+    @Test
+    void surroundsTheFallbackDeckWithAUniqueTwoBlockGuardrail() {
+        List<TemporaryWaitingPlatform.BlockPosition> blocks =
+                TemporaryWaitingPlatform.guardrails(-476, 65, 367);
+
+        assertEquals(80, blocks.size());
+        assertEquals(80, new HashSet<>(blocks).size());
+        assertTrue(blocks.contains(new TemporaryWaitingPlatform.BlockPosition(-481, 66, 367)));
+        assertTrue(blocks.contains(new TemporaryWaitingPlatform.BlockPosition(-471, 67, 367)));
+    }
 }

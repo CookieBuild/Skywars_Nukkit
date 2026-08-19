@@ -1,6 +1,7 @@
 package com.cookiebuild.skywars.map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
@@ -13,6 +14,13 @@ import org.junit.jupiter.api.io.TempDir;
 class MapManagerTest {
     @TempDir
     Path directory;
+
+    @Test
+    void legacyProductionConfigsStillReceivePublicMapNames() {
+        assertEquals("Cookie Ring", MapManager.defaultDisplayName("legacy-0"));
+        assertEquals("Golden Orbit", MapManager.defaultDisplayName("legacy-4"));
+        assertEquals("community-map", MapManager.defaultDisplayName("community-map"));
+    }
 
     @Test
     void rejectsNestedWorldRootsThatWouldGenerateAnEmptyArena() throws IOException {

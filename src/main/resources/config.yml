@@ -4,6 +4,7 @@ config-version: 2
 # preserved from CookieBuild/Skywars_Nukkit and checked against the recovered maps.
 maps:
   legacy-0:
+    display-name: Cookie Ring
     archive: legacy-0.zip
     waiting-spawn: [100.5, 80.0, 648.5, 0.0]
     spectator-spawn: [100.5, 72.0, 648.5, 0.0]
@@ -23,6 +24,7 @@ maps:
       - [57.5, 53.5, 623.5, -59.0]
 
   legacy-1:
+    display-name: Cloud Circuit
     archive: legacy-1.zip
     waiting-spawn: [-1589.5, 75.0, -797.5, 0.0]
     spectator-spawn: [-1589.5, 67.0, -797.5, 0.0]
@@ -43,6 +45,7 @@ maps:
       - [-1563.5, 48.5, -844.5, 28.0]
 
   legacy-2:
+    display-name: Crumb Canyon
     archive: legacy-2.zip
     waiting-spawn: [-475.5, 66.0, 367.5, 0.0]
     spectator-spawn: [-475.5, 60.0, 367.5, 0.0]
@@ -63,6 +66,7 @@ maps:
       - [-414.5, 39.5, 345.5, 70.0]
 
   legacy-4:
+    display-name: Golden Orbit
     archive: legacy-4.zip
     waiting-spawn: [189.5, 92.0, 203.5, 0.0]
     spectator-spawn: [189.5, 84.0, 203.5, 0.0]

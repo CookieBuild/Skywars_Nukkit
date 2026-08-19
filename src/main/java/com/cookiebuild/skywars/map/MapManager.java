@@ -56,12 +56,23 @@ public final class MapManager {
         String path = name + ".";
         return new MapTemplate(
                 name,
+                maps.getString(path + "display-name", defaultDisplayName(name)),
                 maps.getString(path + "archive", name + ".zip"),
                 numberMatrix(maps.getList(path + "spawns"), path + "spawns"),
                 numberList(maps.getList(path + "waiting-spawn"), path + "waiting-spawn"),
                 numberList(maps.getList(path + "spectator-spawn"), path + "spectator-spawn"),
                 maps.getDouble(path + "kill-y"),
                 maps.getDouble(path + "middle-radius", 18.0));
+    }
+
+    static String defaultDisplayName(String name) {
+        return switch (name) {
+            case "legacy-0" -> "Cookie Ring";
+            case "legacy-1" -> "Cloud Circuit";
+            case "legacy-2" -> "Crumb Canyon";
+            case "legacy-4" -> "Golden Orbit";
+            default -> name;
+        };
     }
 
     private static List<List<Double>> numberMatrix(List<?> source, String field) {
@@ -263,9 +274,13 @@ public final class MapManager {
             world.getBlockAt(block.x(), block.y(), block.z()).setType(
                     Material.LIGHT_BLUE_STAINED_GLASS, false);
         }
+        for (TemporaryWaitingPlatform.BlockPosition block
+                : TemporaryWaitingPlatform.guardrails(waiting.getBlockX(), floorY, waiting.getBlockZ())) {
+            world.getBlockAt(block.x(), block.y(), block.z()).setType(Material.BLUE_STAINED_GLASS, false);
+        }
         requireSolidTerrain(world, waiting, "generated temporary waiting spawn");
-        SkyWars.getInstance().getLogger().warning("Generated a temporary waiting platform for recovered map "
-                + template.getName() + " because its legacy lobby platform is missing");
+        SkyWars.getInstance().getLogger().warning("Generated a safe Sky Deck for "
+                + template.getDisplayName() + " because the archived lobby platform is missing");
     }
 
     private static void requireSolidTerrain(World world, org.bukkit.Location location, String label)

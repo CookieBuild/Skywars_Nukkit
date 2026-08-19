@@ -7,6 +7,7 @@ import org.bukkit.World;
 
 public final class MapTemplate {
     private final String name;
+    private final String displayName;
     private final String archive;
     private final List<List<Double>> spawns;
     private final List<Double> waitingSpawn;
@@ -17,11 +18,20 @@ public final class MapTemplate {
     public MapTemplate(String name, String archive, List<List<Double>> spawns,
             List<Double> waitingSpawn, List<Double> spectatorSpawn,
             double killY, double middleRadius) {
+        this(name, name, archive, spawns, waitingSpawn, spectatorSpawn, killY, middleRadius);
+    }
+
+    public MapTemplate(String name, String displayName, String archive, List<List<Double>> spawns,
+            List<Double> waitingSpawn, List<Double> spectatorSpawn,
+            double killY, double middleRadius) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Map name is required");
         }
         if (archive == null || !archive.matches("[A-Za-z0-9._-]+\\.zip")) {
             throw new IllegalArgumentException("Map archive must be a simple .zip filename");
+        }
+        if (displayName == null || displayName.isBlank()) {
+            throw new IllegalArgumentException("Map display name is required");
         }
         if (spawns == null || spawns.size() < 2) {
             throw new IllegalArgumentException("A SkyWars map needs at least two spawns");
@@ -33,6 +43,7 @@ public final class MapTemplate {
             throw new IllegalArgumentException("kill-y and middle-radius must be finite; radius must be positive");
         }
         this.name = name;
+        this.displayName = displayName;
         this.archive = archive;
         this.spawns = spawns.stream().map(List::copyOf).toList();
         this.waitingSpawn = List.copyOf(waitingSpawn);
@@ -49,6 +60,10 @@ public final class MapTemplate {
 
     public String getName() {
         return name;
+    }
+
+    public String getDisplayName() {
+        return displayName;
     }
 
     public String getArchive() {

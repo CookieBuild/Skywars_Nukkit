@@ -267,7 +267,7 @@ public final class SkyWarsGame extends Game {
             }
             SkyWarsStats.Snapshot snapshot = stats.snapshot(player.getUniqueId());
             scoreboard.update(player, List.of(
-                    "§6Map: §f" + map.template().getName(),
+                    "§6Map: §f" + map.template().getDisplayName(),
                     "§6State: §f" + state,
                     " ",
                     "§6Alive: §a" + alive.size() + "/" + participantIds.size(),
