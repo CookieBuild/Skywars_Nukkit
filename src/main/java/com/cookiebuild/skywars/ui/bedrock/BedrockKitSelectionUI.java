@@ -26,15 +26,17 @@ public final class BedrockKitSelectionUI {
 
     public void open(Player player, KitMenuSnapshot snapshot) {
         SimpleForm.Builder builder = SimpleForm.builder()
-                .title("§l§6SkyWars Kits")
-                .content("§9§lLevel: §f§l" + snapshot.level()
-                        + "  §6§lCoins: §f§l" + snapshot.coins()
-                        + "\n§a§lXP: §f§l" + snapshot.experience() + "/" + snapshot.nextLevelExperience()
-                        + "\n\n§7Choose an owned kit or open its shop page.");
+                .title("§l§6" + SkyWars.message(player, "skywars.kit.catalog"))
+                .content("§9§l" + SkyWars.message(player, "skywars.kit.level", snapshot.level())
+                        + "  §6§l" + SkyWars.message(player, "skywars.kit.coins", snapshot.coins())
+                        + "\n§a§l" + SkyWars.message(player, "skywars.kit.xp", snapshot.experience(),
+                                snapshot.nextLevelExperience())
+                        + "\n\n§7" + SkyWars.message(player, "skywars.kit.bedrock.help"));
         List<KitMenuSnapshot.Entry> entries = snapshot.entries();
         for (KitMenuSnapshot.Entry entry : entries) {
             String prefix = entry.selected() ? "§6§l★ " : entry.unlocked() ? "§a§l✓ " : "§e§l🏪 ";
-            String suffix = entry.unlocked() ? "" : "\n§f" + entry.kit().price() + " coins";
+            String suffix = entry.unlocked() ? "" : "\n§f"
+                    + SkyWars.message(player, "skywars.kit.price", entry.kit().price());
             builder.button(prefix + "§f§l" + entry.kit().displayName() + suffix);
         }
         builder.validResultHandler(response -> {
@@ -54,9 +56,9 @@ public final class BedrockKitSelectionUI {
         ModalForm form = ModalForm.builder()
                 .title("§l§6" + entry.kit().displayName())
                 .content(SkyWars.message(player, "skywars.kit." + entry.kit().key() + ".description")
-                        + "\n\n§6Price: §f" + entry.kit().price() + " coins")
-                .button1("§a§lPurchase and Select")
-                .button2("§f§lBack")
+                        + "\n\n§6" + SkyWars.message(player, "skywars.kit.price", entry.kit().price()))
+                .button1("§a§l" + SkyWars.message(player, "skywars.kit.purchase_select"))
+                .button2("§f§l" + SkyWars.message(player, "skywars.ui.back"))
                 .validResultHandler(response -> {
                     if (response.getClickedButtonId() == 0) selectionHandler.accept(player, entry);
                     else reopenHandler.accept(player);

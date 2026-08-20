@@ -1,6 +1,5 @@
 package com.cookiebuild.skywars.game;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,7 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -40,6 +40,7 @@ import com.cookiebuild.cookiedough.service.MinigameProgressionService;
 import com.cookiebuild.skywars.SkyWars;
 import com.cookiebuild.skywars.kit.SkyWarsKit;
 import com.cookiebuild.skywars.loot.LootTable;
+import com.cookiebuild.skywars.loot.ChestTier;
 import com.cookiebuild.skywars.map.GameMap;
 import com.cookiebuild.skywars.map.MapManager;
 import com.cookiebuild.skywars.map.MapTemplate;
@@ -50,10 +51,8 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 
 public final class SkyWarsGame extends Game {
-    private static final int MAX_RUNNING_SECONDS = 12 * 60;
-    private static final int BORDER_SHRINK_START_SECONDS = 6 * 60;
-
     private final GameMap map;
+    private final SkyWarsPacing pacing;
     private final MatchService matchService = new MatchService(null);
     private final MinigameProgressionService progression = CookieDough.createMinigameProgressionService();
     private final SkyWarsStats stats = new SkyWarsStats();
@@ -63,29 +62,45 @@ public final class SkyWarsGame extends Game {
     private final Map<UUID, Integer> spawnAssignments = new HashMap<>();
     private final Set<Integer> assignedSpawns = new HashSet<>();
     private final Set<UUID> alive = new HashSet<>();
-    private final Set<String> filledChests = new HashSet<>();
+    private final Map<String, Integer> filledChests = new HashMap<>();
     private final Set<String> placedBlocks = new HashSet<>();
     private final Map<UUID, Integer> placements = new HashMap<>();
     private final Map<UUID, Integer> survivalSeconds = new HashMap<>();
+    private final Map<UUID, Integer> buildLimitWarnings = new HashMap<>();
+    private final Set<UUID> trackerGuidancePlayers = new HashSet<>();
 
-    private Match match;
+    private CompletableFuture<Match> matchFuture = CompletableFuture.completedFuture(null);
     private int runningSeconds;
+    private int chestGeneration;
+    private final int buildCeilingY;
     private boolean borderShrinking;
+    private boolean refillTriggered;
+    private boolean trackersGiven;
+    private boolean timedOut;
     private boolean outcomeHandled;
     private boolean cleanupStarted;
     private BukkitTask cleanupTask;
 
-    public SkyWarsGame() {
-        super("SkyWars");
+    public SkyWarsGame(UUID gameId, GameMap preparedMap) {
+        super("SkyWars", gameId);
         START_DELAY_SECONDS = 30;
         QUICK_START_DELAY_SECONDS = 10;
-        try {
-            MapTemplate template = MapManager.selectTemplate();
-            this.map = MapManager.loadMap(getGameId(), template);
-            setCapacity(template.getCapacity());
-        } catch (IOException | RuntimeException error) {
-            throw new IllegalStateException("SkyWars map preparation failed: " + error.getMessage(), error);
-        }
+        this.map = java.util.Objects.requireNonNull(preparedMap, "preparedMap");
+        MapTemplate template = map.template();
+        setCapacity(template.getCapacity());
+        this.pacing = readPacing();
+        this.buildCeilingY = (int) Math.floor(template.getSpawns(map.world()).stream()
+                .mapToDouble(Location::getY).max().orElse(64.0)) + pacing.buildCeilingOffset();
+    }
+
+    private static SkyWarsPacing readPacing() {
+        var config = SkyWars.getInstance().getConfig();
+        return new SkyWarsPacing(
+                config.getInt("gameplay.max-seconds", 360),
+                config.getInt("gameplay.border-start-seconds", 90),
+                config.getInt("gameplay.refill-seconds", 150),
+                config.getInt("gameplay.tracker-seconds", 180),
+                config.getInt("gameplay.build-ceiling-offset", 24));
     }
 
     @Override
@@ -118,6 +133,7 @@ public final class SkyWarsGame extends Game {
         spawnAssignments.put(playerId, spawn);
         alive.add(playerId);
         stats.register(playerId);
+        SkyWars.getInstance().getKitManager().preload(playerId);
         try {
             teleportToGame(cookiePlayer);
             player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.choose"), NamedTextColor.YELLOW));
@@ -167,17 +183,17 @@ public final class SkyWarsGame extends Game {
         } else {
             player.setGameMode(GameMode.ADVENTURE);
             player.teleport(map.template().getWaitingSpawn(map.world()));
-            player.getInventory().setItem(0, kitSelector());
+            player.getInventory().setItem(0, kitSelector(player));
         }
     }
 
-    private ItemStack kitSelector() {
+    private ItemStack kitSelector(Player player) {
         ItemStack selector = new ItemStack(Material.COOKIE);
         ItemMeta meta = selector.getItemMeta();
-        meta.displayName(Component.text("Kit Selector", NamedTextColor.GOLD));
+        meta.displayName(Component.text(SkyWars.message(player, "skywars.kit.selector"), NamedTextColor.GOLD));
         meta.lore(List.of(
-                Component.text("Right-click to select your kit", NamedTextColor.GRAY),
-                Component.text("Java inventory or Bedrock form", NamedTextColor.GRAY)));
+                Component.text(SkyWars.message(player, "skywars.kit.selector.use"), NamedTextColor.GRAY),
+                Component.text(SkyWars.message(player, "skywars.kit.selector.platforms"), NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(SkyWars.getInstance().getKitSelectorKey(), PersistentDataType.BYTE, (byte) 1);
         selector.setItemMeta(meta);
         return selector;
@@ -188,13 +204,45 @@ public final class SkyWarsGame extends Game {
         if (map.world() == null || getPlayers().size() < getMinimumPlayers()) {
             return;
         }
+        List<UUID> pendingProfiles = participantIds.stream()
+                .filter(playerId -> !SkyWars.getInstance().getKitManager().isProfileReady(playerId)).toList();
+        if (!pendingProfiles.isEmpty()) {
+            pendingProfiles.forEach(SkyWars.getInstance().getKitManager()::preload);
+            getPlayers().forEach(player -> player.getPlayer().sendMessage(Component.text(
+                    SkyWars.message(player.getPlayer(), "skywars.kit.waiting_profile"), NamedTextColor.YELLOW)));
+            return;
+        }
+        assignCompactSpawns();
         prepareBorder();
         super.startGame();
-        try {
-            match = matchService.startMatchByPlayerIds("SkyWars", participantIds);
-        } catch (RuntimeException error) {
-            match = null;
-            SkyWars.getInstance().getLogger().severe("SkyWars will continue without match telemetry: " + error.getMessage());
+        Set<UUID> startingPlayers = Set.copyOf(participantIds);
+        matchFuture = new CompletableFuture<>();
+        Bukkit.getScheduler().runTaskAsynchronously(SkyWars.getInstance(), () -> {
+            try {
+                matchFuture.complete(matchService.startMatchByPlayerIds("SkyWars", startingPlayers));
+            } catch (RuntimeException error) {
+                SkyWars.getInstance().getLogger().severe(
+                        "SkyWars will continue without match telemetry: " + error.getMessage());
+                matchFuture.complete(null);
+            }
+        });
+    }
+
+    private void assignCompactSpawns() {
+        List<Location> authored = map.template().getSpawns(map.world());
+        List<CompactSpawnSelector.Point> points = authored.stream()
+                .map(location -> new CompactSpawnSelector.Point(
+                        location.getX(), location.getY(), location.getZ()))
+                .toList();
+        List<Integer> selected = CompactSpawnSelector.select(
+                points, participantIds.size(), getGameId().hashCode());
+        assignedSpawns.clear();
+        spawnAssignments.clear();
+        int index = 0;
+        for (UUID playerId : participantIds) {
+            int spawn = selected.get(index++);
+            spawnAssignments.put(playerId, spawn);
+            assignedSpawns.add(spawn);
         }
     }
 
@@ -219,13 +267,27 @@ public final class SkyWarsGame extends Game {
             return;
         }
         runningSeconds++;
-        if (!borderShrinking && runningSeconds >= BORDER_SHRINK_START_SECONDS) {
+        if (!borderShrinking && runningSeconds >= pacing.borderStartSeconds()) {
             borderShrinking = true;
-            map.world().getWorldBorder().changeSize(16.0, MAX_RUNNING_SECONDS - BORDER_SHRINK_START_SECONDS);
+            map.world().getWorldBorder().changeSize(16.0, pacing.maxSeconds() - pacing.borderStartSeconds());
             getPlayers().forEach(player -> player.getPlayer().sendMessage(Component.text(
                     SkyWars.message(player.getPlayer(), "skywars.sudden_death"), NamedTextColor.RED)));
         }
-        if (runningSeconds >= MAX_RUNNING_SECONDS) {
+        if (!refillTriggered && runningSeconds >= pacing.refillSeconds()) {
+            refillTriggered = true;
+            chestGeneration++;
+            getPlayers().forEach(player -> player.getPlayer().sendMessage(Component.text(
+                    SkyWars.message(player.getPlayer(), "skywars.refill"), NamedTextColor.AQUA)));
+        }
+        if (!trackersGiven && (runningSeconds >= pacing.trackerSeconds() || alive.size() <= 2)) {
+            trackersGiven = true;
+            giveTrackers();
+        }
+        if (trackersGiven) {
+            updateTrackerTargets();
+        }
+        if (runningSeconds >= pacing.maxSeconds()) {
+            timedOut = true;
             endGame(selectTimeoutWinner());
         } else {
             checkWinner();
@@ -233,11 +295,76 @@ public final class SkyWarsGame extends Game {
     }
 
     private CookiePlayer selectTimeoutWinner() {
-        return alive.stream().map(participantPlayers::get).filter(java.util.Objects::nonNull)
-                .max(java.util.Comparator
-                        .comparingDouble((CookiePlayer player) -> player.getPlayer().getHealth())
-                        .thenComparingInt(player -> stats.snapshot(player.getPlayer().getUniqueId()).kills()))
-                .orElse(null);
+        UUID winnerId = TimeoutStanding.winner(alive.stream().map(participantPlayers::get)
+                .filter(java.util.Objects::nonNull)
+                .map(player -> {
+                    UUID playerId = player.getPlayer().getUniqueId();
+                    SkyWarsStats.Snapshot snapshot = stats.snapshot(playerId);
+                    return new TimeoutStanding(playerId, snapshot.kills(), player.getPlayer().getHealth(),
+                            snapshot.chestTiers().getOrDefault(ChestTier.MID, 0), snapshot.chestsOpened());
+                }).toList());
+        return winnerId == null ? null : participantPlayers.get(winnerId);
+    }
+
+    private void giveTrackers() {
+        for (UUID playerId : alive) {
+            CookiePlayer cookiePlayer = participantPlayers.get(playerId);
+            if (cookiePlayer == null || !cookiePlayer.getPlayer().isOnline()) continue;
+            Player player = cookiePlayer.getPlayer();
+            TrackerDelivery.Mode mode = TrackerDelivery.mode(
+                    player.getInventory().contains(Material.COMPASS), player.getInventory().firstEmpty());
+            if (mode == TrackerDelivery.Mode.GIVE_ITEM) {
+                player.getInventory().setItem(player.getInventory().firstEmpty(), trackerItem(player));
+            } else if (mode == TrackerDelivery.Mode.GUIDANCE) {
+                trackerGuidancePlayers.add(playerId);
+            }
+            String key = mode == TrackerDelivery.Mode.GUIDANCE
+                    ? "skywars.tracker.guidance_enabled" : "skywars.tracker.enabled";
+            player.sendMessage(Component.text(SkyWars.message(player, key),
+                    NamedTextColor.AQUA));
+        }
+    }
+
+    private ItemStack trackerItem(Player player) {
+        ItemStack compass = new ItemStack(Material.COMPASS);
+        ItemMeta meta = compass.getItemMeta();
+        meta.displayName(Component.text(SkyWars.message(player, "skywars.tracker.name"), NamedTextColor.AQUA));
+        meta.lore(List.of(Component.text(SkyWars.message(player, "skywars.tracker.description"),
+                NamedTextColor.GRAY)));
+        compass.setItemMeta(meta);
+        return compass;
+    }
+
+    private void updateTrackerTargets() {
+        for (UUID playerId : alive) {
+            CookiePlayer source = participantPlayers.get(playerId);
+            if (source == null || !source.getPlayer().isOnline()) continue;
+            Player player = source.getPlayer();
+            alive.stream().filter(other -> !other.equals(playerId)).map(participantPlayers::get)
+                    .filter(java.util.Objects::nonNull).map(CookiePlayer::getPlayer).filter(Player::isOnline)
+                    .min(java.util.Comparator.comparingDouble(other -> other.getLocation()
+                            .distanceSquared(player.getLocation())))
+                    .ifPresent(target -> {
+                        player.setCompassTarget(target.getLocation());
+                        if (!player.getInventory().contains(Material.COMPASS)
+                                && player.getInventory().firstEmpty() >= 0) {
+                            player.getInventory().setItem(player.getInventory().firstEmpty(), trackerItem(player));
+                            trackerGuidancePlayers.remove(playerId);
+                            player.sendMessage(Component.text(SkyWars.message(
+                                    player, "skywars.tracker.enabled"), NamedTextColor.AQUA));
+                        } else if (trackerGuidancePlayers.contains(playerId)) {
+                            double deltaX = target.getLocation().getX() - player.getLocation().getX();
+                            double deltaZ = target.getLocation().getZ() - player.getLocation().getZ();
+                            TrackerDelivery.Direction direction = TrackerDelivery.relativeDirection(
+                                    player.getLocation().getYaw(), deltaX, deltaZ);
+                            int distance = (int) Math.round(Math.hypot(deltaX, deltaZ));
+                            player.sendActionBar(Component.text(SkyWars.message(player, "skywars.tracker.guidance",
+                                    SkyWars.message(player, "skywars.tracker.direction."
+                                            + direction.name().toLowerCase(java.util.Locale.ROOT)),
+                                    distance), NamedTextColor.AQUA));
+                        }
+                    });
+        }
     }
 
     private void updateDisplay() {
@@ -248,7 +375,7 @@ public final class SkyWarsGame extends Game {
             case RUNNING -> "skywars.state.running";
             case FINISHED -> "skywars.state.finished";
         };
-        int timeLeft = Math.max(0, MAX_RUNNING_SECONDS - runningSeconds);
+        int timeLeft = Math.max(0, pacing.maxSeconds() - runningSeconds);
         for (CookiePlayer cookiePlayer : getPlayers()) {
             Player player = cookiePlayer.getPlayer();
             String state = SkyWars.message(player, stateKey);
@@ -263,16 +390,20 @@ public final class SkyWarsGame extends Game {
                 player.sendActionBar(Component.text(status, waiting.isCountingDown()
                         ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
             } else {
-                player.sendActionBar(Component.text(state + " · " + alive.size() + " alive", NamedTextColor.YELLOW));
+                player.sendActionBar(Component.text(SkyWars.message(player, "skywars.action.running",
+                        state, alive.size()), NamedTextColor.YELLOW));
             }
             SkyWarsStats.Snapshot snapshot = stats.snapshot(player.getUniqueId());
+            String objective = SkyWars.message(player, SkyWarsObjective.messageKey(snapshot));
             scoreboard.update(player, List.of(
-                    "§6Map: §f" + map.template().getDisplayName(),
-                    "§6State: §f" + state,
+                    "§6" + SkyWars.message(player, "skywars.scoreboard.map") + ": §f" + map.template().getDisplayName(),
+                    "§6" + SkyWars.message(player, "skywars.scoreboard.state") + ": §f" + state,
                     " ",
-                    "§6Alive: §a" + alive.size() + "/" + participantIds.size(),
-                    "§6Kills: §a" + snapshot.kills(),
-                    "§6Time: §f" + String.format("%d:%02d", timeLeft / 60, timeLeft % 60)));
+                    "§e" + SkyWars.message(player, "skywars.scoreboard.objective") + ": §f" + objective,
+                    "§6" + SkyWars.message(player, "skywars.scoreboard.alive") + ": §a" + alive.size() + "/" + participantIds.size(),
+                    "§6" + SkyWars.message(player, "skywars.scoreboard.kills") + ": §a" + snapshot.kills(),
+                    "§6" + SkyWars.message(player, "skywars.scoreboard.time") + ": §f"
+                            + String.format("%d:%02d", timeLeft / 60, timeLeft % 60)));
         }
     }
 
@@ -297,13 +428,17 @@ public final class SkyWarsGame extends Game {
     }
 
     public void eliminate(Player victim, Player attacker, String reason) {
+        eliminate(victim, attacker, reason, "unknown");
+    }
+
+    public void eliminate(Player victim, Player attacker, String reason, String cause) {
         UUID victimId = victim.getUniqueId();
         if (getState() != GameState.RUNNING || !alive.remove(victimId)) {
             return;
         }
         UUID attackerId = attacker != null && alive.contains(attacker.getUniqueId())
                 ? attacker.getUniqueId() : null;
-        stats.recordElimination(victimId, attackerId);
+        stats.recordElimination(victimId, attackerId, cause);
         placements.put(victimId, alive.size() + 1);
         survivalSeconds.put(victimId, runningSeconds);
         CookiePlayer cookiePlayer = participantPlayers.get(victimId);
@@ -316,7 +451,8 @@ public final class SkyWarsGame extends Game {
         victim.setGameMode(GameMode.SPECTATOR);
         victim.teleport(map.template().getSpectatorSpawn(map.world()));
         victim.showTitle(Title.title(
-                Component.text("ELIMINATED", NamedTextColor.RED, TextDecoration.BOLD),
+                Component.text(SkyWars.message(victim, "skywars.outcome.eliminated"),
+                        NamedTextColor.RED, TextDecoration.BOLD),
                 Component.text(reason, NamedTextColor.GRAY),
                 Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(2), Duration.ofMillis(500))));
         for (CookiePlayer participant : getPlayers()) {
@@ -349,8 +485,8 @@ public final class SkyWarsGame extends Game {
             placements.put(winnerId, 1);
             survivalSeconds.put(winnerId, runningSeconds);
         }
-        // A timeout can end while several players are still alive. Record a
-        // deterministic runner-up placement instead of leaving those players at 0.
+        // A timeout can end while several players are still alive. Record tied
+        // survivors instead of leaving them without a placement.
         for (UUID survivorId : alive) {
             if (!survivorId.equals(winnerId)) {
                 placements.putIfAbsent(survivorId, winnerId == null ? 1 : 2);
@@ -376,51 +512,87 @@ public final class SkyWarsGame extends Game {
     }
 
     private void persistOutcome(UUID winnerId, boolean interrupted, boolean rewardPlayers) {
-        List<MatchService.Performance> performances = participantIds.stream().map(playerId -> {
-            SkyWarsStats.Snapshot snapshot = stats.snapshot(playerId);
-            return new MatchService.Performance(playerId, snapshot.kills(), snapshot.deaths(), 0, Map.of(
-                    "map", map.template().getName(),
-                    "placement", placements.getOrDefault(playerId, 0),
-                    "survivalSeconds", survivalSeconds.getOrDefault(playerId, runningSeconds),
-                    "chestsOpened", snapshot.chestsOpened(),
-                    "blocksPlaced", snapshot.blocksPlaced(),
-                    "interrupted", interrupted));
-        }).toList();
-        if (match != null) {
+        Set<UUID> persistedParticipants = Set.copyOf(participantIds);
+        List<MatchService.Performance> performances = createPerformances(persistedParticipants, interrupted);
+        Map<UUID, SkyWarsStats.Snapshot> snapshots = persistedParticipants.stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(playerId -> playerId, stats::snapshot));
+        CompletableFuture<Match> pendingMatch = matchFuture;
+        int completedAtSeconds = runningSeconds;
+        Bukkit.getScheduler().runTaskAsynchronously(SkyWars.getInstance(), () -> {
+            Match durableMatch = null;
             try {
-                List<UUID> winners = winnerId == null ? List.of() : List.of(winnerId);
-                matchService.completeMatchByWinnerIds(match, winners, performances);
-            } catch (RuntimeException error) {
-                SkyWars.getInstance().getLogger().severe("Could not persist SkyWars match outcome: " + error.getMessage());
+                durableMatch = pendingMatch.get(5, TimeUnit.SECONDS);
+            } catch (Exception error) {
+                logWarning("SkyWars match start did not complete: " + error.getMessage());
             }
-        }
-        if (!rewardPlayers) {
-            return;
-        }
-        String sourceId = match == null ? getGameId().toString() : match.getId().toString();
-        for (UUID playerId : participantIds) {
-            SkyWarsStats.Snapshot snapshot = stats.snapshot(playerId);
-            boolean won = playerId.equals(winnerId);
-            int rewardedKills = Math.min(snapshot.kills(),
-                    SkyWars.getInstance().getConfig().getInt("rewards.rewarded-kills-cap", 5));
-            int coins = SkyWars.getInstance().getConfig().getInt("rewards.participation-coins", 5)
-                    + rewardedKills * SkyWars.getInstance().getConfig().getInt("rewards.kill-coins", 2)
-                    + (won ? SkyWars.getInstance().getConfig().getInt("rewards.victory-coins", 25) : 0);
-            int xp = SkyWars.getInstance().getConfig().getInt("rewards.participation-xp", 15)
-                    + rewardedKills * SkyWars.getInstance().getConfig().getInt("rewards.kill-xp", 10)
-                    + (won ? SkyWars.getInstance().getConfig().getInt("rewards.victory-xp", 100) : 0);
-            try {
-                progression.applyReward(playerId, "skywars", xp, coins, "match:" + sourceId + ":skywars-reward");
-                LobbyScoreboard.invalidatePlayerCache(playerId);
-                CookieDough.getInstance().getGoalTracker().recordMatch(playerId, "SkyWars", won, snapshot.kills());
-                Player player = Bukkit.getPlayer(playerId);
-                if (player != null) {
-                    player.sendMessage(Component.text(SkyWars.message(player, "skywars.reward", coins, xp), NamedTextColor.GREEN));
+            if (durableMatch != null) {
+                try {
+                    List<UUID> winners = winnerId == null ? List.of() : List.of(winnerId);
+                    matchService.completeMatchByWinnerIds(durableMatch, winners, performances);
+                } catch (RuntimeException error) {
+                    SkyWars.getInstance().getLogger().severe(
+                            "Could not persist SkyWars match outcome: " + error.getMessage());
                 }
-            } catch (RuntimeException error) {
-                SkyWars.getInstance().getLogger().warning("Could not reward SkyWars player " + playerId + ": " + error.getMessage());
             }
-        }
+            if (!rewardPlayers) return;
+            String sourceId = durableMatch == null ? getGameId().toString() : durableMatch.getId().toString();
+            for (UUID playerId : persistedParticipants) {
+                SkyWarsStats.Snapshot snapshot = snapshots.get(playerId);
+                boolean won = playerId.equals(winnerId);
+                int rewardedKills = Math.min(snapshot.kills(),
+                        SkyWars.getInstance().getConfig().getInt("rewards.rewarded-kills-cap", 5));
+                int coins = SkyWars.getInstance().getConfig().getInt("rewards.participation-coins", 5)
+                        + rewardedKills * SkyWars.getInstance().getConfig().getInt("rewards.kill-coins", 2)
+                        + (won ? SkyWars.getInstance().getConfig().getInt("rewards.victory-coins", 25) : 0);
+                int xp = SkyWars.getInstance().getConfig().getInt("rewards.participation-xp", 15)
+                        + rewardedKills * SkyWars.getInstance().getConfig().getInt("rewards.kill-xp", 10)
+                        + (won ? SkyWars.getInstance().getConfig().getInt("rewards.victory-xp", 100) : 0);
+                try {
+                    progression.applyReward(playerId, "skywars", xp, coins,
+                            "match:" + sourceId + ":skywars-reward");
+                    CookieDough.getInstance().getGoalTracker().recordMatch(
+                            playerId, "SkyWars", won, snapshot.kills());
+                    Bukkit.getScheduler().runTask(SkyWars.getInstance(), () -> {
+                        LobbyScoreboard.invalidatePlayerCache(playerId);
+                        Player player = Bukkit.getPlayer(playerId);
+                        if (player != null) {
+                            player.sendMessage(Component.text(SkyWars.message(player, "skywars.reward", coins, xp),
+                                    NamedTextColor.GREEN));
+                        }
+                    });
+                } catch (RuntimeException error) {
+                    SkyWars.getInstance().getLogger().warning(
+                            "Could not reward SkyWars player " + playerId + " after " + completedAtSeconds
+                                    + "s: " + error.getMessage());
+                }
+            }
+        });
+    }
+
+    private List<MatchService.Performance> createPerformances(Set<UUID> persistedParticipants, boolean interrupted) {
+        return persistedParticipants.stream().map(playerId -> {
+            SkyWarsStats.Snapshot snapshot = stats.snapshot(playerId);
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("map", map.template().getName());
+            metadata.put("placement", placements.getOrDefault(playerId, 0));
+            metadata.put("survivalSeconds", survivalSeconds.getOrDefault(playerId, runningSeconds));
+            metadata.put("chestsOpened", snapshot.chestsOpened());
+            metadata.put("blocksPlaced", snapshot.blocksPlaced());
+            metadata.put("chestIsland", snapshot.chestTiers().getOrDefault(ChestTier.ISLAND, 0));
+            metadata.put("chestIntermediate", snapshot.chestTiers().getOrDefault(ChestTier.INTERMEDIATE, 0));
+            metadata.put("chestMid", snapshot.chestTiers().getOrDefault(ChestTier.MID, 0));
+            for (LootTable.Family family : LootTable.Family.values()) {
+                metadata.put("loot" + family.name().charAt(0) + family.name().substring(1).toLowerCase(
+                        java.util.Locale.ROOT), snapshot.lootFamilies().getOrDefault(family, 0));
+            }
+            metadata.put("timeToFirstChestSeconds", snapshot.timeToFirstChestSeconds());
+            metadata.put("timeToMidSeconds", snapshot.timeToMidSeconds());
+            metadata.put("deathCause", snapshot.deathCause());
+            metadata.put("refillTriggered", refillTriggered);
+            metadata.put("timeout", timedOut);
+            metadata.put("interrupted", interrupted);
+            return new MatchService.Performance(playerId, snapshot.kills(), snapshot.deaths(), 0, metadata);
+        }).toList();
     }
 
     public boolean fillChest(Inventory inventory, Location location, Player opener) {
@@ -428,28 +600,47 @@ public final class SkyWarsGame extends Game {
             return false;
         }
         String key = location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ();
-        if (!filledChests.add(key)) {
+        if (filledChests.getOrDefault(key, -1) == chestGeneration) {
             return false;
         }
-        boolean middle = map.template().getSpawns(map.world()).stream()
-                .allMatch(spawn -> spawn.distanceSquared(location) > map.template().getMiddleRadius() * map.template().getMiddleRadius());
-        int rolls = SkyWars.getInstance().getConfig().getInt(middle ? "loot.middle-rolls" : "loot.normal-rolls", middle ? 8 : 5);
-        List<ItemStack> loot = LootTable.roll(middle, rolls, ThreadLocalRandom.current());
+        ChestTier tier = map.template().getChestTier(location);
+        int defaultRolls = switch (tier) {
+            case ISLAND -> 5;
+            case INTERMEDIATE -> 6;
+            case MID -> 8;
+        };
+        int rolls = SkyWars.getInstance().getConfig().getInt(
+                "loot." + tier.name().toLowerCase(java.util.Locale.ROOT) + "-rolls", defaultRolls);
+        long seed = getGameId().getMostSignificantBits() ^ getGameId().getLeastSignificantBits()
+                ^ ((long) key.hashCode() << 32) ^ chestGeneration;
+        java.util.Random random = new java.util.Random(seed);
+        LootTable.Roll generated = LootTable.roll(tier, rolls, random);
+        filledChests.put(key, chestGeneration);
+        List<ItemStack> loot = generated.items();
         inventory.clear();
         List<Integer> slots = new ArrayList<>();
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             slots.add(slot);
         }
-        java.util.Collections.shuffle(slots);
+        java.util.Collections.shuffle(slots, random);
         for (int index = 0; index < Math.min(loot.size(), slots.size()); index++) {
             inventory.setItem(slots.get(index), loot.get(index));
         }
-        stats.recordChest(opener.getUniqueId());
+        stats.recordChest(opener.getUniqueId(), tier, generated.families(), runningSeconds);
         return true;
     }
 
     public void recordBlockPlaced(Player player) {
         stats.recordBlockPlaced(player.getUniqueId());
+    }
+
+    public boolean canPlaceBlock(Player player, Location location) {
+        if (location.getBlockY() <= buildCeilingY) return true;
+        Integer previous = buildLimitWarnings.put(player.getUniqueId(), runningSeconds);
+        if (previous == null || previous != runningSeconds) {
+            player.sendActionBar(Component.text(SkyWars.message(player, "skywars.build_limit"), NamedTextColor.RED));
+        }
+        return false;
     }
 
     public void trackPlacedBlock(Location location) {
@@ -491,7 +682,7 @@ public final class SkyWarsGame extends Game {
         UUID playerId = cookiePlayer.getPlayer().getUniqueId();
         boolean running = getState() == GameState.RUNNING;
         if (running && alive.remove(playerId)) {
-            stats.recordElimination(playerId, null);
+            stats.recordElimination(playerId, null, reason == null ? "disconnect" : reason);
             placements.put(playerId, alive.size() + 1);
             survivalSeconds.put(playerId, runningSeconds);
         }
@@ -511,12 +702,39 @@ public final class SkyWarsGame extends Game {
     }
 
     public void shutdown() {
-        if (getState() == GameState.RUNNING && !outcomeHandled) {
-            outcomeHandled = true;
-            persistOutcome(null, true, false);
+        try {
+            if (getState() == GameState.RUNNING && !outcomeHandled) {
+                outcomeHandled = true;
+                persistInterruptedOutcome();
+            }
+        } catch (RuntimeException error) {
+            logWarning("Interrupted SkyWars persistence failed before cleanup: " + error.getMessage());
+        } finally {
+            setState(GameState.FINISHED);
+            cleanup();
         }
-        setState(GameState.FINISHED);
-        cleanup();
+    }
+
+    private void persistInterruptedOutcome() {
+        Set<UUID> persistedParticipants = Set.copyOf(participantIds);
+        List<MatchService.Performance> performances = createPerformances(persistedParticipants, true);
+        CompletableFuture<Match> pendingMatch = matchFuture;
+        boolean flushed = BoundedAsyncFlush.runAndAwait(() -> {
+            try {
+                Match durableMatch = pendingMatch.get(1500, TimeUnit.MILLISECONDS);
+                if (durableMatch != null) {
+                    new MatchService(null).completeMatchByWinnerIds(durableMatch, Set.of(), performances);
+                }
+            } catch (Exception error) {
+                logWarning("Could not persist interrupted SkyWars match: " + error.getMessage());
+            }
+        }, Duration.ofSeconds(2));
+        if (!flushed) logWarning("Interrupted SkyWars persistence exceeded the 2 second shutdown budget");
+    }
+
+    private void logWarning(String message) {
+        SkyWars plugin = SkyWars.getInstance();
+        if (plugin != null) plugin.getLogger().warning(message);
     }
 
     private void cleanup() {
@@ -542,27 +760,42 @@ public final class SkyWarsGame extends Game {
                     player.teleport(fallback.getSpawnLocation());
                 }
             } finally {
-                if (getPlayers().contains(cookiePlayer)) {
-                    super.removePlayer(cookiePlayer, "game_cleanup");
+                try {
+                    if (getPlayers().contains(cookiePlayer)) {
+                        super.removePlayer(cookiePlayer, "game_cleanup");
+                    }
+                } catch (RuntimeException error) {
+                    logWarning("Could not remove SkyWars player during cleanup: " + error.getMessage());
                 }
-                scoreboard.remove(player);
+                try {
+                    scoreboard.remove(player);
+                } catch (RuntimeException error) {
+                    logWarning("Could not clear SkyWars scoreboard during cleanup: " + error.getMessage());
+                }
             }
         }
-        if (!MapManager.unloadMap(getGameId())) {
-            SkyWars.getInstance().getLogger().warning("SkyWars map cleanup remains pending for " + getGameId());
+        try {
+            if (!MapManager.unloadMap(getGameId())) {
+                logWarning("SkyWars map cleanup remains pending for " + getGameId());
+            }
+        } catch (RuntimeException error) {
+            logWarning("SkyWars map cleanup failed for " + getGameId() + ": " + error.getMessage());
+        } finally {
+            alive.clear();
+            participantIds.clear();
+            participantPlayers.clear();
+            spawnAssignments.clear();
+            assignedSpawns.clear();
+            filledChests.clear();
+            placedBlocks.clear();
+            placements.clear();
+            survivalSeconds.clear();
+            buildLimitWarnings.clear();
+            trackerGuidancePlayers.clear();
+            stats.clear();
+            scoreboard.clear();
+            GameManager.removeGame(this);
+            SkyWars.requestStandbyRefill();
         }
-        alive.clear();
-        participantIds.clear();
-        participantPlayers.clear();
-        spawnAssignments.clear();
-        assignedSpawns.clear();
-        filledChests.clear();
-        placedBlocks.clear();
-        placements.clear();
-        survivalSeconds.clear();
-        stats.clear();
-        scoreboard.clear();
-        GameManager.removeGame(this);
-        SkyWars.requestStandbyRefill();
     }
 }

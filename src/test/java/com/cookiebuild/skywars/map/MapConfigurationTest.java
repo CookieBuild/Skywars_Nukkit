@@ -9,13 +9,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
 class MapConfigurationTest {
-    private static final Pattern SPAWN = Pattern.compile("(?m)^      - \\[([^]]+)]$");
+    private static final Pattern COORDINATE = Pattern.compile("(?m)^      - \\[([^]]+)]$");
 
     @Test
     void declaresEveryRecoveredArchiveWithItsHistoricalMapIdentity() throws IOException {
@@ -57,6 +58,41 @@ class MapConfigurationTest {
         }
     }
 
+    @Test
+    void everyArenaAuthorsExactlyEightUniqueMiddleChests() throws IOException {
+        String config = config();
+        for (String map : List.of("legacy-0", "legacy-1", "legacy-2", "legacy-4")) {
+            List<String> middle = coordinatesUnder(section(config, map), "mid-chests");
+            assertEquals(8, middle.size(), map);
+            assertEquals(8, new HashSet<>(middle).size(), map);
+            assertEquals("18.0", value(config, map, "island-chest-radius"));
+        }
+    }
+
+    @Test
+    void builtInUpgradeFallbackMatchesVersionedConfigMetadata() throws IOException {
+        String config = config();
+        for (String map : List.of("legacy-0", "legacy-1", "legacy-2", "legacy-4")) {
+            Set<String> configured = new HashSet<>(coordinatesUnder(section(config, map), "mid-chests"));
+            Set<String> fallback = LegacyChestLayouts.midChests(map).stream()
+                    .map(value -> value.toString().replace("[", "").replace("]", ""))
+                    .collect(java.util.stream.Collectors.toSet());
+            assertEquals(configured, fallback, map);
+        }
+    }
+
+    @Test
+    void competitivePacingAndTierRollsAreExplicit() throws IOException {
+        String config = config();
+        assertTrue(config.contains("max-seconds: 360"));
+        assertTrue(config.contains("border-start-seconds: 90"));
+        assertTrue(config.contains("refill-seconds: 150"));
+        assertTrue(config.contains("tracker-seconds: 180"));
+        assertTrue(config.contains("island-rolls: 5"));
+        assertTrue(config.contains("intermediate-rolls: 6"));
+        assertTrue(config.contains("mid-rolls: 8"));
+    }
+
     private static String config() throws IOException {
         try (InputStream input = MapConfigurationTest.class.getResourceAsStream("/config.yml")) {
             if (input == null) {
@@ -86,7 +122,19 @@ class MapConfigurationTest {
     }
 
     private static List<String> spawns(String section) {
-        Matcher matcher = SPAWN.matcher(section);
+        return coordinatesUnder(section, "spawns");
+    }
+
+    private static List<String> coordinatesUnder(String section, String key) {
+        String marker = "    " + key + ":\n";
+        int start = section.indexOf(marker);
+        if (start < 0) throw new IllegalArgumentException("Missing coordinate list " + key);
+        Matcher nextField = Pattern.compile("(?m)^    [a-z][a-z-]*:")
+                .matcher(section);
+        int contentStart = start + marker.length();
+        int end = nextField.find(contentStart) ? nextField.start() : section.length();
+        String coordinateSection = section.substring(contentStart, end);
+        Matcher matcher = COORDINATE.matcher(coordinateSection);
         List<String> result = new ArrayList<>();
         while (matcher.find()) {
             result.add(matcher.group(1));

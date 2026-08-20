@@ -1,4 +1,11 @@
-config-version: 2
+config-version: 3
+
+gameplay:
+  max-seconds: 360
+  border-start-seconds: 90
+  refill-seconds: 150
+  tracker-seconds: 180
+  build-ceiling-offset: 24
 
 # Converted world templates live in skywars_maps/<archive>.zip. Coordinates are
 # preserved from CookieBuild/Skywars_Nukkit and checked against the recovered maps.
@@ -9,7 +16,16 @@ maps:
     waiting-spawn: [100.5, 80.0, 648.5, 0.0]
     spectator-spawn: [100.5, 72.0, 648.5, 0.0]
     kill-y: 35.0
-    middle-radius: 18.0
+    island-chest-radius: 18.0
+    mid-chests:
+      - [87, 45, 640]
+      - [87, 45, 650]
+      - [90, 57, 645]
+      - [100, 62, 641]
+      - [100, 62, 649]
+      - [110, 57, 645]
+      - [113, 45, 640]
+      - [113, 45, 650]
     spawns:
       - [51.5, 53.5, 640.5, -79.0]
       - [57.5, 53.5, 666.5, -110.0]
@@ -29,7 +45,16 @@ maps:
     waiting-spawn: [-1589.5, 75.0, -797.5, 0.0]
     spectator-spawn: [-1589.5, 67.0, -797.5, 0.0]
     kill-y: 30.0
-    middle-radius: 18.0
+    island-chest-radius: 18.0
+    mid-chests:
+      - [-1605, 51, -799]
+      - [-1599, 40, -799]
+      - [-1598, 47, -809]
+      - [-1589, 49, -802]
+      - [-1589, 49, -796]
+      - [-1580, 47, -790]
+      - [-1579, 40, -799]
+      - [-1574, 50, -799]
     spawns:
       - [-1589.5, 48.5, -870.5, -1.0]
       - [-1613.5, 48.5, -843.5, -29.0]
@@ -50,7 +75,16 @@ maps:
     waiting-spawn: [-475.5, 66.0, 367.5, 0.0]
     spectator-spawn: [-475.5, 60.0, 367.5, 0.0]
     kill-y: 20.0
-    middle-radius: 18.0
+    island-chest-radius: 18.0
+    mid-chests:
+      - [-493, 43, 367]
+      - [-487, 43, 357]
+      - [-487, 43, 377]
+      - [-477, 41, 367]
+      - [-477, 51, 367]
+      - [-467, 43, 357]
+      - [-467, 43, 377]
+      - [-461, 43, 367]
     spawns:
       - [-453.5, 39.5, 306.5, 20.0]
       - [-475.5, 39.5, 280.5, 0.0]
@@ -71,7 +105,16 @@ maps:
     waiting-spawn: [189.5, 92.0, 203.5, 0.0]
     spectator-spawn: [189.5, 84.0, 203.5, 0.0]
     kill-y: 45.0
-    middle-radius: 18.0
+    island-chest-radius: 18.0
+    mid-chests:
+      - [183, 67, 203]
+      - [185, 69, 203]
+      - [186, 67, 200]
+      - [186, 67, 206]
+      - [186, 69, 202]
+      - [186, 69, 204]
+      - [187, 69, 203]
+      - [189, 67, 203]
     spawns:
       - [211.5, 65.5, 156.5, 27.0]
       - [188.5, 65.5, 148.5, 0.0]
@@ -96,5 +139,6 @@ rewards:
   victory-xp: 100
 
 loot:
-  normal-rolls: 5
-  middle-rolls: 8
+  island-rolls: 5
+  intermediate-rolls: 6
+  mid-rolls: 8

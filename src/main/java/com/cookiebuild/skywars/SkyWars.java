@@ -3,10 +3,10 @@ package com.cookiebuild.skywars;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.time.Duration;
+import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import org.bukkit.NamespacedKey;
-import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -15,8 +15,10 @@ import com.cookiebuild.cookiedough.CookieDough;
 import com.cookiebuild.cookiedough.game.Game;
 import com.cookiebuild.cookiedough.game.GameManager;
 import com.cookiebuild.cookiedough.game.GameState;
-import com.cookiebuild.cookiedough.game.StandbyGamePool;
-import com.cookiebuild.cookiedough.game.StandbyRefillGate;
+import com.cookiebuild.cookiedough.game.BukkitArenaPreparationScheduler;
+import com.cookiebuild.cookiedough.game.ArenaPreparationPipeline;
+import com.cookiebuild.cookiedough.game.StandbyArenaService;
+import com.cookiebuild.cookiedough.game.StandbyRefillPolicy;
 import com.cookiebuild.skywars.game.SkyWarsGame;
 import com.cookiebuild.skywars.kit.KitCommand;
 import com.cookiebuild.skywars.kit.KitManager;
@@ -29,19 +31,13 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class SkyWars extends JavaPlugin {
-    private static final int STANDBY_GAME_TARGET = 3;
-    private static final long STANDBY_REFILL_RETRY_TICKS = 20L * 5L;
     private static SkyWars instance;
     private KitManager kitManager;
     private KitCommand kitCommand;
     private SkyWarsKitSelectionUI kitSelectionUI;
     private SkyWarsListener gameListener;
     private NamespacedKey kitSelectorKey;
-    private final StandbyGamePool<SkyWarsGame> standbyGames =
-            new StandbyGamePool<>(STANDBY_GAME_TARGET);
-    private final StandbyRefillGate standbyRefillGate =
-            new StandbyRefillGate(Duration.ofSeconds(30));
-    private boolean standbyRefillScheduled;
+    private StandbyArenaService<MapManager.PreparedMap, SkyWarsGame> arenas;
     private boolean shuttingDown;
 
     public static SkyWars getInstance() {
@@ -49,16 +45,7 @@ public final class SkyWars extends JavaPlugin {
     }
 
     public static boolean registerNewGame() {
-        try {
-            SkyWarsGame game = new SkyWarsGame();
-            GameManager.addGame(game);
-            instance.getLogger().info("Registered SkyWars game " + game.getGameId());
-            return true;
-        } catch (RuntimeException error) {
-            instance.getLogger().warning("SkyWars remains unavailable until a valid map archive is installed: "
-                    + error.getMessage());
-            return false;
-        }
+        return instance != null && !instance.shuttingDown && instance.arenas.request(0L);
     }
 
     /** Promotes an already loaded world without doing I/O on the queue tick. */
@@ -66,82 +53,44 @@ public final class SkyWars extends JavaPlugin {
         if (instance == null || instance.shuttingDown) {
             return;
         }
-        SkyWarsGame game = instance.standbyGames.poll();
-        if (game == null) {
-            instance.getLogger().warning("No preloaded SkyWars standby is available; "
-                    + "the next arena will be prepared once gameplay is idle");
-            requestStandbyRefill();
-            return;
-        }
-        GameManager.addGame(game);
-        instance.getLogger().info("Activated preloaded SkyWars game " + game.getGameId()
-                + " (standby remaining=" + instance.standbyGames.size() + ")");
-        requestStandbyRefill();
+        instance.arenas.activateNext();
     }
 
     public static void requestStandbyRefill() {
-        if (instance == null || instance.shuttingDown || instance.standbyRefillScheduled
-                || !instance.standbyGames.needsRefill()) {
-            return;
+        if (instance != null && !instance.shuttingDown) {
+            instance.arenas.request(StandbyRefillPolicy.RUNTIME_DELAY_TICKS);
         }
-        instance.standbyRefillScheduled = true;
-        instance.getServer().getScheduler().runTaskLater(instance, () -> {
-            if (instance == null || instance.shuttingDown) {
-                return;
-            }
-            instance.standbyRefillScheduled = false;
-            if (!instance.isSafeToRefill()) {
-                requestStandbyRefill();
-                return;
-            }
-            instance.preloadStandbyGames();
-            instance.activatePreparedGameIfMissing();
-            if (instance.standbyGames.needsRefill()) {
-                requestStandbyRefill();
-            }
-        }, STANDBY_REFILL_RETRY_TICKS);
     }
 
-    private boolean isSafeToRefill() {
-        // WorldCreator is synchronous and may take several seconds even when no
-        // match is running. Do not impose that pause on lobby users either, and
-        // require a sustained empty interval so reconnects cannot race a refill.
-        boolean activeGameplay = GameManager.getGames().stream().anyMatch(game -> !game.getPlayers().isEmpty()
-                || game.getState() == GameState.STARTING
-                || game.getState() == GameState.RUNNING);
-        return standbyRefillGate.canRefill(!Bukkit.getOnlinePlayers().isEmpty(), activeGameplay);
+    private MapManager.PreparedMap planArena() {
+        try {
+            return MapManager.plan(UUID.randomUUID(), MapManager.selectTemplate());
+        } catch (java.io.IOException error) {
+            throw new CompletionException(error);
+        }
     }
 
-    private void preloadStandbyGames() {
-        while (!shuttingDown && standbyGames.needsRefill()) {
-            long startedAt = System.nanoTime();
+    private static MapManager.PreparedMap prepareArenaIo(MapManager.PreparedMap plan) {
+        try {
+            return MapManager.prepareIo(plan);
+        } catch (java.io.IOException error) {
+            throw new CompletionException(error);
+        }
+    }
+
+    private static ArenaPreparationPipeline.WorldLoad<SkyWarsGame> loadArena(
+            MapManager.PreparedMap prepared) {
+        return MapManager.loadPreparedAsync(prepared).map(map -> {
             try {
-                SkyWarsGame game = new SkyWarsGame();
-                if (!standbyGames.offer(game)) {
-                    game.shutdown();
-                    break;
-                }
-                getLogger().info("Preloaded SkyWars standby " + game.getGameId()
-                        + " (" + standbyGames.size() + "/" + standbyGames.targetSize()
-                        + ", load_ms=" + elapsedMillis(startedAt) + ")");
+                return new SkyWarsGame(prepared.gameId(), map);
             } catch (RuntimeException error) {
-                getLogger().warning("Could not preload SkyWars standby: " + error.getMessage());
-                break;
+                if (!MapManager.discardLoadedWorld(prepared.gameId())) {
+                    SkyWars.getInstance().getLogger().warning(
+                            "Could not unload partially constructed SkyWars arena " + prepared.gameId());
+                }
+                throw error;
             }
-        }
-    }
-
-    private void activatePreparedGameIfMissing() {
-        boolean hasOpenGame = GameManager.getGames().stream()
-                .filter(SkyWarsGame.class::isInstance)
-                .anyMatch(game -> game.getState() == GameState.OPEN);
-        if (!hasOpenGame) {
-            activateNextGame();
-        }
-    }
-
-    private static long elapsedMillis(long startedAt) {
-        return (System.nanoTime() - startedAt) / 1_000_000L;
+        });
     }
 
     @Override
@@ -158,6 +107,12 @@ public final class SkyWars extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        arenas = StandbyArenaService.asynchronous(
+                "SkyWars", new BukkitArenaPreparationScheduler(this), this::planArena,
+                SkyWars::prepareArenaIo, SkyWars::loadArena, MapManager::discardPrepared,
+                () -> GameManager.getGames().stream().filter(SkyWarsGame.class::isInstance)
+                        .anyMatch(game -> game.getState() == GameState.OPEN),
+                GameManager::addGame, SkyWarsGame::shutdown, getLogger(), true);
 
         kitManager = new KitManager(CookieDough.createMinigameProgressionService());
         kitSelectionUI = new SkyWarsKitSelectionUI(kitManager);
@@ -181,10 +136,6 @@ public final class SkyWars extends JavaPlugin {
 
         if (!registerNewGame()) {
             getLogger().warning("Plugin enabled without an open game; NPC/Quick Play will not offer an empty arena.");
-        } else {
-            // World creation is intentionally completed before Paper reports the
-            // server ready. Countdown ticks only promote these prepared games.
-            preloadStandbyGames();
         }
     }
 
@@ -207,7 +158,7 @@ public final class SkyWars extends JavaPlugin {
     @Override
     public void onDisable() {
         shuttingDown = true;
-        standbyGames.drain();
+        if (arenas != null) arenas.shutdown();
         for (Game game : new ArrayList<>(GameManager.getGames())) {
             if (game instanceof SkyWarsGame skyWarsGame) {
                 skyWarsGame.shutdown();
@@ -215,6 +166,9 @@ public final class SkyWars extends JavaPlugin {
         }
         if (gameListener != null) {
             gameListener.clear();
+        }
+        if (kitManager != null) {
+            kitManager.clear();
         }
         if (!MapManager.unloadAll()) {
             getLogger().warning("Some SkyWars world directories could not be cleaned up");

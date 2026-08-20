@@ -1,9 +1,12 @@
 package com.cookiebuild.skywars.map;
 
 import java.util.List;
+import java.util.Set;
 
 import org.bukkit.Location;
 import org.bukkit.World;
+
+import com.cookiebuild.skywars.loot.ChestTier;
 
 public final class MapTemplate {
     private final String name;
@@ -13,17 +16,24 @@ public final class MapTemplate {
     private final List<Double> waitingSpawn;
     private final List<Double> spectatorSpawn;
     private final double killY;
-    private final double middleRadius;
+    private final double islandChestRadius;
+    private final Set<BlockPosition> midChests;
 
     public MapTemplate(String name, String archive, List<List<Double>> spawns,
             List<Double> waitingSpawn, List<Double> spectatorSpawn,
             double killY, double middleRadius) {
-        this(name, name, archive, spawns, waitingSpawn, spectatorSpawn, killY, middleRadius);
+        this(name, name, archive, spawns, waitingSpawn, spectatorSpawn, killY, middleRadius, Set.of());
     }
 
     public MapTemplate(String name, String displayName, String archive, List<List<Double>> spawns,
             List<Double> waitingSpawn, List<Double> spectatorSpawn,
             double killY, double middleRadius) {
+        this(name, displayName, archive, spawns, waitingSpawn, spectatorSpawn, killY, middleRadius, Set.of());
+    }
+
+    public MapTemplate(String name, String displayName, String archive, List<List<Double>> spawns,
+            List<Double> waitingSpawn, List<Double> spectatorSpawn,
+            double killY, double islandChestRadius, Set<BlockPosition> midChests) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Map name is required");
         }
@@ -39,8 +49,11 @@ public final class MapTemplate {
         spawns.forEach(coords -> requireCoordinates("spawn", coords));
         requireCoordinates("waiting-spawn", waitingSpawn);
         requireCoordinates("spectator-spawn", spectatorSpawn);
-        if (!Double.isFinite(killY) || !Double.isFinite(middleRadius) || middleRadius <= 0) {
-            throw new IllegalArgumentException("kill-y and middle-radius must be finite; radius must be positive");
+        if (!Double.isFinite(killY) || !Double.isFinite(islandChestRadius) || islandChestRadius <= 0) {
+            throw new IllegalArgumentException("kill-y and island-chest-radius must be finite; radius must be positive");
+        }
+        if (midChests == null || midChests.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException("mid-chests must contain valid block coordinates");
         }
         this.name = name;
         this.displayName = displayName;
@@ -49,7 +62,8 @@ public final class MapTemplate {
         this.waitingSpawn = List.copyOf(waitingSpawn);
         this.spectatorSpawn = List.copyOf(spectatorSpawn);
         this.killY = killY;
-        this.middleRadius = middleRadius;
+        this.islandChestRadius = islandChestRadius;
+        this.midChests = Set.copyOf(midChests);
     }
 
     private static void requireCoordinates(String field, List<Double> coords) {
@@ -78,8 +92,25 @@ public final class MapTemplate {
         return killY;
     }
 
-    public double getMiddleRadius() {
-        return middleRadius;
+    public double getIslandChestRadius() {
+        return islandChestRadius;
+    }
+
+    public Set<BlockPosition> getMidChests() {
+        return midChests;
+    }
+
+    public ChestTier getChestTier(Location location) {
+        if (location == null) {
+            throw new IllegalArgumentException("Chest location is required");
+        }
+        if (midChests.contains(BlockPosition.of(location))) {
+            return ChestTier.MID;
+        }
+        double radiusSquared = islandChestRadius * islandChestRadius;
+        boolean island = getSpawns(location.getWorld()).stream()
+                .anyMatch(spawn -> spawn.distanceSquared(location) <= radiusSquared);
+        return island ? ChestTier.ISLAND : ChestTier.INTERMEDIATE;
     }
 
     public Location getSpawn(World world, int index) {

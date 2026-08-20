@@ -3,6 +3,7 @@ package com.cookiebuild.skywars.kit;
 import java.util.Arrays;
 import java.util.List;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -31,7 +32,7 @@ public final class KitCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("This command is only available to players.");
+            sender.sendMessage(SkyWars.message(null, "skywars.command.player_only"));
             return true;
         }
         CookiePlayer cookiePlayer = PlayerManager.getPlayer(player);
@@ -50,23 +51,10 @@ public final class KitCommand implements CommandExecutor, TabCompleter {
             showCatalog(player);
             return true;
         }
-        if (args[0].equalsIgnoreCase("buy")) {
-            if (kitManager.isUnlocked(player.getUniqueId(), kit)) {
-                player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.already_unlocked", kit.displayName()), NamedTextColor.YELLOW));
-            } else if (kitManager.purchase(player.getUniqueId(), kit)) {
-                kitManager.select(player.getUniqueId(), kit);
-                player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.unlocked_selected", kit.displayName()), NamedTextColor.GREEN));
-            } else {
-                player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.need_coins", kit.price(), kit.displayName()), NamedTextColor.RED));
-            }
-            return true;
-        }
-        if (args[0].equalsIgnoreCase("select")) {
-            if (kitManager.select(player.getUniqueId(), kit)) {
-                player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.selected", kit.displayName()), NamedTextColor.GREEN));
-            } else {
-                player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.unlock_first", kit.displayName()), NamedTextColor.RED));
-            }
+        boolean purchase = args[0].equalsIgnoreCase("buy");
+        boolean select = args[0].equalsIgnoreCase("select");
+        if (purchase || select) {
+            mutateAsync(player, kit, purchase);
             return true;
         }
         showCatalog(player);
@@ -75,6 +63,53 @@ public final class KitCommand implements CommandExecutor, TabCompleter {
 
     public void showCatalog(Player player) {
         kitSelectionUI.open(player);
+    }
+
+    private void mutateAsync(Player player, SkyWarsKit kit, boolean purchase) {
+        var playerId = player.getUniqueId();
+        if (!kitManager.tryBeginMutation(playerId)) {
+            player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.busy"), NamedTextColor.YELLOW));
+            return;
+        }
+        Bukkit.getScheduler().runTaskAsynchronously(SkyWars.getInstance(), () -> {
+            String key;
+            NamedTextColor color;
+            try {
+                KitManager.Profile profile = kitManager.loadProfile(playerId);
+                if (purchase && profile.isUnlocked(kit)) {
+                    key = "skywars.kit.already_unlocked";
+                    color = NamedTextColor.YELLOW;
+                } else if (purchase && kitManager.purchase(playerId, kit) && kitManager.select(playerId, kit)) {
+                    key = "skywars.kit.unlocked_selected";
+                    color = NamedTextColor.GREEN;
+                } else if (purchase) {
+                    key = "skywars.kit.need_coins";
+                    color = NamedTextColor.RED;
+                } else if (kitManager.select(playerId, kit)) {
+                    key = "skywars.kit.selected";
+                    color = NamedTextColor.GREEN;
+                } else {
+                    key = "skywars.kit.unlock_first";
+                    color = NamedTextColor.RED;
+                }
+            } catch (RuntimeException error) {
+                SkyWars.getInstance().getLogger().warning(
+                        "Could not update SkyWars kit for " + playerId + ": " + error.getMessage());
+                key = purchase ? "skywars.kit.purchase_failed" : "skywars.kit.selection_failed";
+                color = NamedTextColor.RED;
+            } finally {
+                kitManager.finishMutation(playerId);
+            }
+            String resultKey = key;
+            NamedTextColor resultColor = color;
+            Bukkit.getScheduler().runTask(SkyWars.getInstance(), () -> {
+                if (!player.isOnline()) return;
+                String message = resultKey.equals("skywars.kit.need_coins")
+                        ? SkyWars.message(player, resultKey, kit.price(), kit.displayName())
+                        : SkyWars.message(player, resultKey, kit.displayName());
+                player.sendMessage(Component.text(message, resultColor));
+            });
+        });
     }
 
     @Override

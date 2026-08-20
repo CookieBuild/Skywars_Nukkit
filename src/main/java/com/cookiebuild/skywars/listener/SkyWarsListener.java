@@ -64,6 +64,10 @@ public final class SkyWarsListener implements Listener {
             event.setCancelled(true);
             return;
         }
+        if (!game.canPlaceBlock(event.getPlayer(), event.getBlock().getLocation())) {
+            event.setCancelled(true);
+            return;
+        }
         game.recordBlockPlaced(event.getPlayer());
         game.trackPlacedBlock(event.getBlock().getLocation());
     }
@@ -100,7 +104,9 @@ public final class SkyWarsListener implements Listener {
             }
             game.eliminate(victim, attacker, event.getCause() == EntityDamageEvent.DamageCause.VOID
                     ? SkyWars.message(victim, "skywars.eliminated.void")
-                    : SkyWars.message(victim, "skywars.eliminated.defeated"));
+                    : SkyWars.message(victim, "skywars.eliminated.defeated"),
+                    event.getCause() == EntityDamageEvent.DamageCause.VOID ? "void"
+                            : attacker == null ? "environment" : "combat");
         }
     }
 
@@ -152,7 +158,7 @@ public final class SkyWarsListener implements Listener {
         }
         if (game.isAlive(player)) {
             game.eliminate(player, attributedAttacker(player, game),
-                    SkyWars.message(player, "skywars.eliminated.void"));
+                    SkyWars.message(player, "skywars.eliminated.void"), "void");
         } else if (player.getGameMode() == GameMode.SPECTATOR) {
             Location anchor = game.getPregameAnchor(player);
             if (anchor != null) {
@@ -228,14 +234,19 @@ public final class SkyWarsListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
-        combat.remove(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        combat.remove(playerId);
+        SkyWars plugin = SkyWars.getInstance();
+        if (plugin != null && plugin.getKitManager() != null) {
+            plugin.getKitManager().release(playerId);
+        }
         // CookieDough may already have removed the wrapper; use each roster as truth.
         for (Game candidate : GameManager.getGames()) {
             if (!(candidate instanceof SkyWarsGame game)) {
                 continue;
             }
             CookiePlayer tracked = game.getPlayers().stream()
-                    .filter(value -> value.getPlayer().getUniqueId().equals(event.getPlayer().getUniqueId()))
+                    .filter(value -> value.getPlayer().getUniqueId().equals(playerId))
                     .findFirst().orElse(null);
             if (tracked != null) {
                 game.removePlayer(tracked, "disconnect");

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.HashSet;
 import java.util.List;
 
+import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
 class TemporaryWaitingPlatformTest {
@@ -29,5 +30,19 @@ class TemporaryWaitingPlatformTest {
         assertEquals(80, new HashSet<>(blocks).size());
         assertTrue(blocks.contains(new TemporaryWaitingPlatform.BlockPosition(-481, 66, 367)));
         assertTrue(blocks.contains(new TemporaryWaitingPlatform.BlockPosition(-471, 67, 367)));
+    }
+
+    @Test
+    void buildsAFramedCookiePodiumWithPerMapAccents() {
+        List<TemporaryWaitingPlatform.BlockPosition> frame =
+                TemporaryWaitingPlatform.frame(100, 70, 200);
+
+        assertEquals(52, frame.size());
+        assertEquals(52, new HashSet<>(frame).size());
+        Material center = TemporaryWaitingPlatform.floorMaterial(
+                "legacy-0", 100, 200, new TemporaryWaitingPlatform.BlockPosition(100, 70, 200));
+        assertTrue(center == Material.BROWN_CONCRETE || center == Material.ORANGE_TERRACOTTA);
+        assertEquals(Material.YELLOW_STAINED_GLASS,
+                TemporaryWaitingPlatform.accentMaterial("legacy-4"));
     }
 }
