@@ -1,7 +1,7 @@
 name: SkyWars
 version: '${version}'
 main: com.cookiebuild.skywars.SkyWars
-api-version: '26.1.2'
+api-version: '26.2'
 load: POSTWORLD
 depend: [CookieDough]
 
