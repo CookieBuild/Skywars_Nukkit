@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -28,6 +29,7 @@ import com.cookiebuild.skywars.kit.KitManager;
 import com.cookiebuild.skywars.kit.SkyWarsKit;
 import com.cookiebuild.skywars.ui.bedrock.BedrockKitSelectionUI;
 import com.cookiebuild.skywars.ui.bedrock.BedrockUIHelper;
+import com.cookiebuild.cookiedough.ui.MenuLore;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -122,8 +124,8 @@ public final class SkyWarsKitSelectionUI implements Listener {
                 : entry.unlocked() ? NamedTextColor.GREEN : NamedTextColor.YELLOW;
         meta.displayName(Component.text((entry.selected() ? "★ " : "") + entry.kit().displayName(), color));
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(SkyWars.message(player,
-                "skywars.kit." + entry.kit().key() + ".description"), NamedTextColor.GRAY));
+        lore.add(MenuLore.detail(SkyWars.message(player,
+                "skywars.kit." + entry.kit().key() + ".description")));
         lore.add(Component.empty());
         if (entry.selected()) lore.add(Component.text(SkyWars.message(player, "skywars.kit.action.selected"), NamedTextColor.GOLD));
         else if (entry.unlocked()) lore.add(Component.text(SkyWars.message(player, "skywars.kit.action.select"), NamedTextColor.GREEN));
@@ -178,6 +180,12 @@ public final class SkyWarsKitSelectionUI implements Listener {
         if (event.getView().getTopInventory().getHolder() instanceof KitMenuHolder) {
             event.setCancelled(true);
         }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        menuLoads.remove(event.getPlayer().getUniqueId());
+        bedrockUI.invalidate(event.getPlayer());
     }
 
     private void renderJavaConfirmation(Player player, SkyWarsKit kit) {
