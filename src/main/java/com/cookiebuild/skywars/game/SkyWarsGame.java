@@ -179,7 +179,8 @@ public final class SkyWarsGame extends Game {
             player.setGameMode(GameMode.SURVIVAL);
             SkyWarsKit kit = SkyWars.getInstance().getKitManager().equip(player);
             player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.equipped",
-                    kit.displayName(), SkyWars.message(player, "skywars.kit." + kit.key() + ".description")), NamedTextColor.AQUA));
+                    SkyWars.kitName(player, kit),
+                    SkyWars.message(player, "skywars.kit." + kit.key() + ".description")), NamedTextColor.AQUA));
         } else {
             player.setGameMode(GameMode.ADVENTURE);
             player.teleport(map.template().getWaitingSpawn(map.world()));

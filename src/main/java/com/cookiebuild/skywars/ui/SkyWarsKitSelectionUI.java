@@ -122,7 +122,8 @@ public final class SkyWarsKitSelectionUI implements Listener {
         ItemMeta meta = item.getItemMeta();
         NamedTextColor color = entry.selected() ? NamedTextColor.GOLD
                 : entry.unlocked() ? NamedTextColor.GREEN : NamedTextColor.YELLOW;
-        meta.displayName(Component.text((entry.selected() ? "★ " : "") + entry.kit().displayName(), color));
+        meta.displayName(Component.text((entry.selected() ? "★ " : "")
+                + SkyWars.kitName(player, entry.kit()), color));
         List<Component> lore = new ArrayList<>();
         lore.add(MenuLore.detail(SkyWars.message(player,
                 "skywars.kit." + entry.kit().key() + ".description")));
@@ -243,7 +244,8 @@ public final class SkyWarsKitSelectionUI implements Listener {
                     String key = success
                             ? alreadyUnlocked ? "skywars.kit.selected" : "skywars.kit.unlocked_selected"
                             : "skywars.kit.purchase_failed";
-                    player.sendMessage(Component.text(SkyWars.message(player, key, entry.kit().displayName()),
+                    player.sendMessage(Component.text(SkyWars.message(player, key,
+                                    SkyWars.kitName(player, entry.kit())),
                             success ? NamedTextColor.GREEN : NamedTextColor.RED));
                     if (!success) open(player);
                 });
@@ -252,7 +254,8 @@ public final class SkyWarsKitSelectionUI implements Listener {
                         "Could not update SkyWars kit for " + playerId + ": " + error.getMessage());
                 Bukkit.getScheduler().runTask(SkyWars.getInstance(), () -> {
                     if (player.isOnline()) player.sendMessage(Component.text(
-                            SkyWars.message(player, "skywars.kit.purchase_failed", entry.kit().displayName()),
+                            SkyWars.message(player, "skywars.kit.purchase_failed",
+                                    SkyWars.kitName(player, entry.kit())),
                             NamedTextColor.RED));
                 });
             } finally {

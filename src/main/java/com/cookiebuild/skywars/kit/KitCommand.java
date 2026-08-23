@@ -105,8 +105,8 @@ public final class KitCommand implements CommandExecutor, TabCompleter {
             Bukkit.getScheduler().runTask(SkyWars.getInstance(), () -> {
                 if (!player.isOnline()) return;
                 String message = resultKey.equals("skywars.kit.need_coins")
-                        ? SkyWars.message(player, resultKey, kit.price(), kit.displayName())
-                        : SkyWars.message(player, resultKey, kit.displayName());
+                        ? SkyWars.message(player, resultKey, kit.price(), SkyWars.kitName(player, kit))
+                        : SkyWars.message(player, resultKey, SkyWars.kitName(player, kit));
                 player.sendMessage(Component.text(message, resultColor));
             });
         });

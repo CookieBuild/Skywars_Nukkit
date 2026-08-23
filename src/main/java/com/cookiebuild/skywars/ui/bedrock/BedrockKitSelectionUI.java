@@ -49,7 +49,8 @@ public final class BedrockKitSelectionUI {
         for (KitMenuSnapshot.Entry entry : entries) {
             String prefix = entry.selected() ? "★ " : entry.unlocked() ? "✓ " : "🏪 ";
             String detail = SkyWars.message(player, "skywars.kit." + entry.kit().key() + ".description");
-            BedrockFormImages.button(builder, BedrockButtonText.format(prefix + entry.kit().displayName(), detail),
+            BedrockFormImages.button(builder, BedrockButtonText.format(
+                            prefix + SkyWars.kitName(player, entry.kit()), detail),
                     imageId(entry));
         }
         BedrockFormImages.button(builder, BedrockButtonText.format(SkyWars.message(player, "skywars.ui.close")),
@@ -72,7 +73,7 @@ public final class BedrockKitSelectionUI {
                 : entry.unlocked() ? SkyWars.message(player, "skywars.kit.action.select")
                 : SkyWars.message(player, "skywars.kit.action.purchase", entry.kit().price());
         SimpleForm.Builder form = SimpleForm.builder()
-                .title("§l§6" + entry.kit().displayName())
+                .title("§l§6" + SkyWars.kitName(player, entry.kit()))
                 .content(SkyWars.message(player, "skywars.kit." + entry.kit().key() + ".description")
                         + "\n\n§6" + status)
                 .validResultHandler(response -> {

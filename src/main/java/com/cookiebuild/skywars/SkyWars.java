@@ -2,7 +2,10 @@ package com.cookiebuild.skywars;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.MissingResourceException;
 import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 
@@ -22,6 +25,7 @@ import com.cookiebuild.cookiedough.game.StandbyRefillPolicy;
 import com.cookiebuild.skywars.game.SkyWarsGame;
 import com.cookiebuild.skywars.kit.KitCommand;
 import com.cookiebuild.skywars.kit.KitManager;
+import com.cookiebuild.skywars.kit.SkyWarsKit;
 import com.cookiebuild.skywars.listener.SkyWarsListener;
 import com.cookiebuild.skywars.map.MapManager;
 import com.cookiebuild.skywars.ui.SkyWarsKitSelectionUI;
@@ -31,6 +35,11 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class SkyWars extends JavaPlugin {
+    private static final String MESSAGE_BUNDLE = "skywars_messages";
+    private static final String UNAVAILABLE_MESSAGE = "Text unavailable";
+    private static final Locale BRAZILIAN_PORTUGUESE = Locale.of("pt", "BR");
+    private static final ResourceBundle.Control NO_SYSTEM_LOCALE_FALLBACK =
+            ResourceBundle.Control.getNoFallbackControl(ResourceBundle.Control.FORMAT_PROPERTIES);
     private static SkyWars instance;
     private KitManager kitManager;
     private KitCommand kitCommand;
@@ -193,23 +202,42 @@ public final class SkyWars extends JavaPlugin {
     }
 
     public static String message(Player player, String key, Object... arguments) {
-        java.util.Locale locale = player == null ? java.util.Locale.ENGLISH : player.locale();
-        String registered = LocaleManager.getMessage("skywars_messages", key, locale, arguments);
-        if (!registered.equals(key)) {
-            return registered;
-        }
-        // LocaleManager lives in CookieDough's plugin classloader. Explicitly use
-        // this module's classloader so module-owned bundles also work on Paper.
-        try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle(
-                    "skywars_messages", locale, SkyWars.class.getClassLoader());
-            String value = bundle.getString(key);
-            for (int index = 0; index < arguments.length; index++) {
-                value = value.replace("{" + index + "}", String.valueOf(arguments[index]));
+        Locale locale = player == null ? Locale.ENGLISH : player.locale();
+        return messageForLocale(locale, key, arguments);
+    }
+
+    static String messageForLocale(Locale locale, String key, Object... arguments) {
+        Locale effectiveLocale = locale == null ? Locale.ENGLISH : locale;
+        List<Locale> candidates = new ArrayList<>();
+        candidates.add(effectiveLocale);
+        if ("pt".equals(effectiveLocale.getLanguage())) candidates.add(BRAZILIAN_PORTUGUESE);
+        if (!effectiveLocale.getLanguage().isBlank()) candidates.add(Locale.of(effectiveLocale.getLanguage()));
+        candidates.add(Locale.ENGLISH);
+
+        for (Locale candidate : candidates.stream().distinct().toList()) {
+            try {
+                ResourceBundle bundle = ResourceBundle.getBundle(MESSAGE_BUNDLE, candidate,
+                        SkyWars.class.getClassLoader(), NO_SYSTEM_LOCALE_FALLBACK);
+                if (!bundle.containsKey(key)) continue;
+                String value = bundle.getString(key);
+                for (int index = 0; index < arguments.length; index++) {
+                    value = value.replace("{" + index + "}", String.valueOf(arguments[index]));
+                }
+                return value;
+            } catch (MissingResourceException ignored) {
+                // Continue through the explicit language and English fallback chain.
             }
-            return value;
-        } catch (java.util.MissingResourceException ignored) {
-            return key;
         }
+        return UNAVAILABLE_MESSAGE;
+    }
+
+    public static String kitName(Player player, SkyWarsKit kit) {
+        Locale locale = player == null ? Locale.ENGLISH : player.locale();
+        return kitNameForLocale(locale, kit);
+    }
+
+    static String kitNameForLocale(Locale locale, SkyWarsKit kit) {
+        if (kit == null) return UNAVAILABLE_MESSAGE;
+        return messageForLocale(locale, "skywars.kit." + kit.key() + ".name");
     }
 }
