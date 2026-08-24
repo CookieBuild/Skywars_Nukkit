@@ -180,7 +180,7 @@ public final class SkyWarsGame extends Game implements ReconnectableGame {
             if (spawn == null) {
                 throw new IllegalStateException("Player has no SkyWars island assignment");
             }
-            player.teleport(map.template().getSpawn(map.world(), spawn));
+            teleportPlayerSafely(player, map.template().getSpawn(map.world(), spawn));
             player.setGameMode(GameMode.SURVIVAL);
             SkyWarsKit kit = SkyWars.getInstance().getKitManager().equip(player);
             player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.equipped",
@@ -188,7 +188,7 @@ public final class SkyWarsGame extends Game implements ReconnectableGame {
                     SkyWars.message(player, "skywars.kit." + kit.key() + ".description")), NamedTextColor.AQUA));
         } else {
             player.setGameMode(GameMode.ADVENTURE);
-            player.teleport(map.template().getWaitingSpawn(map.world()));
+            teleportPlayerSafely(player, map.template().getWaitingSpawn(map.world()));
             player.getInventory().setItem(0, kitSelector(player));
         }
     }
