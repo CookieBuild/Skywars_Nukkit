@@ -199,14 +199,8 @@ public final class SkyWarsGame extends Game implements ReconnectableGame {
     }
 
     @Override
-    protected boolean teleportToSpectator(CookiePlayer cookiePlayer) {
-        if (map == null || map.world() == null) return false;
-        Player player = cookiePlayer.getPlayer();
-        Location destination = map.template().getSpectatorSpawn(map.world());
-        if (!destination.getChunk().load() || !player.teleport(destination)) return false;
-        cookiePlayer.resetPlayer();
-        player.setGameMode(GameMode.SPECTATOR);
-        return true;
+    protected Location spectatorDestination(CookiePlayer cookiePlayer) {
+        return map == null || map.world() == null ? null : map.template().getSpectatorSpawn(map.world());
     }
 
     private ItemStack kitSelector(Player player) {
