@@ -30,6 +30,8 @@ import com.cookiebuild.cookiedough.CookieDough;
 import com.cookiebuild.cookiedough.game.Game;
 import com.cookiebuild.cookiedough.game.GameManager;
 import com.cookiebuild.cookiedough.game.GameState;
+import com.cookiebuild.cookiedough.game.PlayerActivitySnapshot;
+import com.cookiebuild.cookiedough.game.ReconnectableGame;
 import com.cookiebuild.cookiedough.lobby.LobbyManager;
 import com.cookiebuild.cookiedough.lobby.LobbyScoreboard;
 import com.cookiebuild.cookiedough.model.Match;
@@ -50,7 +52,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 
-public final class SkyWarsGame extends Game {
+public final class SkyWarsGame extends Game implements ReconnectableGame {
+    private static final long RECONNECT_GRACE_MILLIS = Duration.ofSeconds(60).toMillis();
     private final GameMap map;
     private final SkyWarsPacing pacing;
     private final MatchService matchService = new MatchService(null);
@@ -67,6 +70,8 @@ public final class SkyWarsGame extends Game {
     private final Map<UUID, Integer> placements = new HashMap<>();
     private final Map<UUID, Integer> survivalSeconds = new HashMap<>();
     private final Map<UUID, Integer> buildLimitWarnings = new HashMap<>();
+    private final Map<UUID, Long> disconnectedAt = new HashMap<>();
+    private final Map<UUID, PlayerActivitySnapshot> reconnectSnapshots = new HashMap<>();
     private final Set<UUID> trackerGuidancePlayers = new HashSet<>();
 
     private CompletableFuture<Match> matchFuture = CompletableFuture.completedFuture(null);
@@ -175,7 +180,7 @@ public final class SkyWarsGame extends Game {
             if (spawn == null) {
                 throw new IllegalStateException("Player has no SkyWars island assignment");
             }
-            player.teleport(map.template().getSpawn(map.world(), spawn));
+            teleportPlayerSafely(player, map.template().getSpawn(map.world(), spawn));
             player.setGameMode(GameMode.SURVIVAL);
             SkyWarsKit kit = SkyWars.getInstance().getKitManager().equip(player);
             player.sendMessage(Component.text(SkyWars.message(player, "skywars.kit.equipped",
@@ -183,9 +188,19 @@ public final class SkyWarsGame extends Game {
                     SkyWars.message(player, "skywars.kit." + kit.key() + ".description")), NamedTextColor.AQUA));
         } else {
             player.setGameMode(GameMode.ADVENTURE);
-            player.teleport(map.template().getWaitingSpawn(map.world()));
+            teleportPlayerSafely(player, map.template().getWaitingSpawn(map.world()));
             player.getInventory().setItem(0, kitSelector(player));
         }
+    }
+
+    @Override
+    public boolean supportsSpectating() {
+        return true;
+    }
+
+    @Override
+    protected Location spectatorDestination(CookiePlayer cookiePlayer) {
+        return map == null || map.world() == null ? null : map.template().getSpectatorSpawn(map.world());
     }
 
     private ItemStack kitSelector(Player player) {
@@ -267,6 +282,7 @@ public final class SkyWarsGame extends Game {
         if (getState() != GameState.RUNNING) {
             return;
         }
+        expireReconnectReservations();
         runningSeconds++;
         if (!borderShrinking && runningSeconds >= pacing.borderStartSeconds()) {
             borderShrinking = true;
@@ -677,10 +693,26 @@ public final class SkyWarsGame extends Game {
 
     @Override
     public synchronized void removePlayer(CookiePlayer cookiePlayer, String reason) {
-        if (cookiePlayer == null || !getPlayers().contains(cookiePlayer)) {
+        if (cookiePlayer == null) {
             return;
         }
         UUID playerId = cookiePlayer.getPlayer().getUniqueId();
+        if (getSpectators().stream().anyMatch(viewer ->
+                viewer.getPlayer().getUniqueId().equals(playerId))) {
+            super.removePlayer(cookiePlayer, reason);
+            scoreboard.remove(cookiePlayer.getPlayer());
+            return;
+        }
+        if (!getPlayers().contains(cookiePlayer)) return;
+        if (getState() == GameState.RUNNING && "disconnect".equalsIgnoreCase(reason)
+                && alive.contains(playerId)) {
+            if (!disconnectedAt.containsKey(playerId)) {
+                disconnectedAt.put(playerId, System.currentTimeMillis());
+                reconnectSnapshots.put(playerId, PlayerActivitySnapshot.capture(cookiePlayer.getPlayer()));
+            }
+            scoreboard.remove(cookiePlayer.getPlayer());
+            return;
+        }
         boolean running = getState() == GameState.RUNNING;
         if (running && alive.remove(playerId)) {
             stats.recordElimination(playerId, null, reason == null ? "disconnect" : reason);
@@ -699,6 +731,49 @@ public final class SkyWarsGame extends Game {
             alive.remove(playerId);
         } else {
             checkWinner();
+        }
+    }
+
+    @Override
+    public boolean hasReconnectReservation(UUID playerId) {
+        Long disconnected = disconnectedAt.get(playerId);
+        return getState() == GameState.RUNNING && disconnected != null && alive.contains(playerId)
+                && System.currentTimeMillis() - disconnected <= RECONNECT_GRACE_MILLIS;
+    }
+
+    @Override
+    public synchronized boolean reconnect(CookiePlayer cookiePlayer) {
+        UUID playerId = cookiePlayer.getPlayer().getUniqueId();
+        PlayerActivitySnapshot snapshot = reconnectSnapshots.get(playerId);
+        Integer spawn = spawnAssignments.get(playerId);
+        if (!hasReconnectReservation(playerId) || snapshot == null || spawn == null
+                || !snapshot.relocate(cookiePlayer.getPlayer(), map.template().getSpawn(map.world(), spawn))
+                || !restorePlayerAfterReconnect(cookiePlayer)) {
+            return false;
+        }
+        snapshot.applyState(cookiePlayer.getPlayer());
+        participantPlayers.put(playerId, cookiePlayer);
+        disconnectedAt.remove(playerId);
+        reconnectSnapshots.remove(playerId);
+        cookiePlayer.setState(PlayerState.IN_GAME);
+        return true;
+    }
+
+    private void expireReconnectReservations() {
+        long now = System.currentTimeMillis();
+        for (UUID playerId : List.copyOf(disconnectedAt.keySet())) {
+            Long disconnected = disconnectedAt.get(playerId);
+            if (disconnected == null || now - disconnected <= RECONNECT_GRACE_MILLIS) continue;
+            disconnectedAt.remove(playerId);
+            reconnectSnapshots.remove(playerId);
+            CookiePlayer reserved = getPlayers().stream()
+                    .filter(player -> player.getPlayer().getUniqueId().equals(playerId)).findFirst().orElse(null);
+            if (reserved != null) super.removePlayer(reserved, "reconnect_expired");
+            if (alive.remove(playerId)) {
+                stats.recordElimination(playerId, null, "disconnect");
+                placements.put(playerId, alive.size() + 1);
+                survivalSeconds.put(playerId, runningSeconds);
+            }
         }
     }
 
@@ -747,6 +822,19 @@ public final class SkyWarsGame extends Game {
             cleanupTask.cancel();
             cleanupTask = null;
         }
+        if (!ejectOwnedPlayersToLobby()) {
+            cleanupStarted = false;
+            SkyWars plugin = SkyWars.getInstance();
+            logWarning("Deferring SkyWars map cleanup until every player reaches the lobby: " + getGameId());
+            if (plugin != null && plugin.isEnabled()) {
+                try {
+                    cleanupTask = Bukkit.getScheduler().runTaskLater(plugin, this::cleanup, 20L);
+                } catch (RuntimeException error) {
+                    logWarning("Could not schedule SkyWars cleanup retry: " + error.getMessage());
+                }
+            }
+            return;
+        }
         for (CookiePlayer cookiePlayer : new ArrayList<>(getPlayers())) {
             Player player = cookiePlayer.getPlayer();
             try {
@@ -793,6 +881,8 @@ public final class SkyWarsGame extends Game {
             survivalSeconds.clear();
             buildLimitWarnings.clear();
             trackerGuidancePlayers.clear();
+            disconnectedAt.clear();
+            reconnectSnapshots.clear();
             stats.clear();
             scoreboard.clear();
             GameManager.removeGame(this);

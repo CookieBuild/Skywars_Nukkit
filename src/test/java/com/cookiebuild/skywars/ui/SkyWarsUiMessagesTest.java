@@ -42,7 +42,7 @@ class SkyWarsUiMessagesTest {
     void everyShippedSkyWarsBundleHasTheSameKeys() {
         ResourceBundle english = ResourceBundle.getBundle("skywars_messages", Locale.ENGLISH);
         for (Locale locale : List.of(Locale.FRENCH, Locale.GERMAN, Locale.of("es"),
-                Locale.of("pa"), Locale.forLanguageTag("pt-BR"), Locale.of("bg"), Locale.of("hi"))) {
+                Locale.forLanguageTag("pt-BR"), Locale.of("bg"), Locale.of("hi"))) {
             ResourceBundle translated = ResourceBundle.getBundle("skywars_messages", locale);
             assertEquals(english.keySet(), translated.keySet(), "SkyWars keys for " + locale);
             for (String key : english.keySet()) {

@@ -56,7 +56,7 @@ public final class BedrockKitSelectionUI {
         BedrockFormImages.button(builder, BedrockButtonText.format(SkyWars.message(player, "skywars.ui.close")),
                 "actions/close");
         builder.validResultHandler(response -> {
-            int index = response.getClickedButtonId();
+            int index = response.clickedButtonId();
             MainThreadPlayerAction.dispatch(SkyWars.getInstance(), player, () -> {
                 if (!sessions.consume(player.getUniqueId(), nonce, scope)) return;
                 if (index >= 0 && index < entries.size()) openDetail(player, entries.get(index));
@@ -77,7 +77,7 @@ public final class BedrockKitSelectionUI {
                 .content(SkyWars.message(player, "skywars.kit." + entry.kit().key() + ".description")
                         + "\n\n§6" + status)
                 .validResultHandler(response -> {
-                    int index = response.getClickedButtonId();
+                    int index = response.clickedButtonId();
                     MainThreadPlayerAction.dispatch(SkyWars.getInstance(), player, () -> {
                         if (!sessions.consume(player.getUniqueId(), nonce, scope)) return;
                         if (index == 0) selectionHandler.accept(player, entry);
