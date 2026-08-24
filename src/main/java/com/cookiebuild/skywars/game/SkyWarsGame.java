@@ -822,6 +822,13 @@ public final class SkyWarsGame extends Game implements ReconnectableGame {
             cleanupTask.cancel();
             cleanupTask = null;
         }
+        if (!ejectOwnedPlayersToLobby()) {
+            cleanupStarted = false;
+            logWarning("Deferring SkyWars map cleanup until every player reaches the lobby: " + getGameId());
+            cleanupTask = Bukkit.getScheduler().runTaskLater(
+                    SkyWars.getInstance(), this::cleanup, 20L);
+            return;
+        }
         for (CookiePlayer cookiePlayer : new ArrayList<>(getPlayers())) {
             Player player = cookiePlayer.getPlayer();
             try {
@@ -850,7 +857,6 @@ public final class SkyWarsGame extends Game implements ReconnectableGame {
                 }
             }
         }
-        ejectSpectatorsToLobby();
         try {
             if (!MapManager.unloadMap(getGameId())) {
                 logWarning("SkyWars map cleanup remains pending for " + getGameId());
