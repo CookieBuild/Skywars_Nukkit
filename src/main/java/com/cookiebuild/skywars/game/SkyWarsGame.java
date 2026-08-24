@@ -824,9 +824,15 @@ public final class SkyWarsGame extends Game implements ReconnectableGame {
         }
         if (!ejectOwnedPlayersToLobby()) {
             cleanupStarted = false;
+            SkyWars plugin = SkyWars.getInstance();
             logWarning("Deferring SkyWars map cleanup until every player reaches the lobby: " + getGameId());
-            cleanupTask = Bukkit.getScheduler().runTaskLater(
-                    SkyWars.getInstance(), this::cleanup, 20L);
+            if (plugin != null && plugin.isEnabled()) {
+                try {
+                    cleanupTask = Bukkit.getScheduler().runTaskLater(plugin, this::cleanup, 20L);
+                } catch (RuntimeException error) {
+                    logWarning("Could not schedule SkyWars cleanup retry: " + error.getMessage());
+                }
+            }
             return;
         }
         for (CookiePlayer cookiePlayer : new ArrayList<>(getPlayers())) {

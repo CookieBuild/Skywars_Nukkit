@@ -22,5 +22,7 @@ class SkyWarsContinuityContractTest {
                 < removal.indexOf("\"disconnect\".equalsIgnoreCase(reason)"));
         assertTrue(source.indexOf("if (!ejectOwnedPlayersToLobby())")
                 < source.indexOf("MapManager.unloadMap(getGameId())"));
+        assertTrue(source.indexOf("plugin != null && plugin.isEnabled()")
+                < source.indexOf("this::cleanup, 20L"));
     }
 }
